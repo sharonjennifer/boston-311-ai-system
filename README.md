@@ -1,4 +1,4 @@
-# Boston 311 AI System
+# Boston 311 AI System (name to be changed in future)
 
 AI-powered complaint management system for Boston with chatbots, analytics dashboards, and ML-driven insights.
 
