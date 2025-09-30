@@ -89,6 +89,4 @@ Monitoring
 
 License
 MIT License - see LICENSE
-Contact
-Repository: https://github.com/sharonjennifer/boston-311-ai-system
-Issues: https://github.com/sharonjennifer/boston-311-ai-system/issues
+
