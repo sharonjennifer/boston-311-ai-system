@@ -1,11 +1,18 @@
 # Boston 311 AI System
 
-AI-powered complaint management system for Boston with chatbots, analytics dashboards, and ML-driven insights.
-
 ## Project Information
 
-The Boston 311 AI System provides intelligent analysis of municipal service requests through automated chatbots, ML-powered prioritization, and real-time analytics dashboards for both citizens and city staff.
+The Boston 311 system provides residents with a platform to report non-emergency issues such as potholes, graffiti, broken streetlights, trash pickup, and sidewalk repairs. While the system generates valuable data, both residents and city staff need more effective ways to interact with this information.
 
+This project builds a solution that makes Boston 311 data more accessible, transparent, and actionable through:
+
+**Citizen-Facing Chatbot:** Allows residents to ask questions in natural language about service request status, complaint patterns in their neighborhood, and expected resolution timelines.
+
+**City Operations Dashboard:** Provides staff with real-time metrics, complaint clustering, prioritization models, and geospatial insights for faster, data-driven decision-making.
+
+By combining structured request data with free-text descriptions, the project creates a modern platform that enhances transparency, reduces manual workloads, and strengthens trust between residents and city services.
+
+**Tech Stack:** Boston 311 API → Airflow → BigQuery | Llama-3.1-8B/Gemma-2 + PyTorch | FastAPI on Cloud Run | Next.js + Mapbox | GCP + Terraform
 **Key Features:**
 - Case status lookup and community insights chatbot
 - ML-based priority scoring and duplicate detection
