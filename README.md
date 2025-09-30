@@ -53,7 +53,6 @@ source venv/bin/activate       # Mac/Linux
 # Install dependencies
 
 pip install --upgrade pip
-
 pip install -r requirements.txt
 Step 3: Configure Environment Variables
 bash# Create environment file
