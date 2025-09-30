@@ -1,21 +1,25 @@
-Boston 311 AI System
+# Boston 311 AI System
+
 AI-powered complaint management system for Boston with chatbots, analytics dashboards, and ML-driven insights.
-Overview
+
+## Project Information
+
 The Boston 311 AI System provides intelligent analysis of municipal service requests through automated chatbots, ML-powered prioritization, and real-time analytics dashboards for both citizens and city staff.
-Key Features:
 
-Case status lookup and community insights chatbot
-ML-based priority scoring and duplicate detection
-Operations dashboards with KPIs and heat maps
-Automated city health reports
+**Key Features:**
+- Case status lookup and community insights chatbot
+- ML-based priority scoring and duplicate detection
+- Operations dashboards with KPIs and heat maps
+- Automated city health reports
 
-Architecture
-Data: Boston 311 API → Airflow → BigQuery (Silver/Gold)
-ML: Llama-3.1-8B/Gemma-2 + PyTorch + Vertex AI Vector Search
-Backend: FastAPI on Cloud Run
-Frontend: Next.js React with Mapbox
+**Architecture:**  
+Data: Boston 311 API → Airflow → BigQuery (Silver/Gold)  
+ML: Llama-3.1-8B/Gemma-2 + PyTorch + Vertex AI Vector Search  
+Backend: FastAPI on Cloud Run  
+Frontend: Next.js React with Mapbox  
 Infrastructure: GCP, Terraform
-Repository Structure
+
+**Repository Structure:**
 boston-311-ai-system/
 ├── data_pipelines/    # Airflow DAGs, SQL transformations
 ├── services/          # FastAPI APIs (chat, prioritization, clustering)
@@ -24,14 +28,12 @@ boston-311-ai-system/
 ├── infra/             # Terraform IaC
 ├── docs/              # Documentation
 └── tests/             # Unit & integration tests
-Installation
-Prerequisites
 
-Python 3.9+, Node.js 18+, Docker, Terraform 1.5+
-GCP account with billing enabled
+## Installation Instructions
 
-Quick Start
-bash# Clone repository
+**Prerequisites:** Python 3.9+, Node.js 18+, Docker, Terraform 1.5+, GCP account with billing
+```bash
+# Clone repository
 git clone https://github.com/sharonjennifer/boston-311-ai-system.git
 cd boston-311-ai-system
 
@@ -54,21 +56,23 @@ terraform apply -var-file=environments/dev.tfvars
 
 # Run tests
 pytest tests/
-Usage
-Deploy Services
+Usage Guidelines
+Deploy Services:
 bashgcloud builds submit --tag gcr.io/PROJECT/SERVICE_NAME
 gcloud run deploy SERVICE_NAME --image gcr.io/PROJECT/SERVICE_NAME
-Run Frontend Locally
+Run Frontend Locally:
 bashcd webapp/frontend
 npm install
 npm run dev
-Train ML Models
+Train ML Models:
 bashpython models/training/train_priority.py
 python models/training/train_clustering.py
-Development
+Development Workflow:
+
 Branches: main (production), feature/* (new features), bugfix/* (fixes)
 Commits: Use conventional commits (e.g., feat: add feature, fix: resolve bug)
 PRs: Require 1 review and passing CI tests
+
 Documentation
 
 Architecture
