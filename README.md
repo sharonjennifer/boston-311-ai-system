@@ -38,7 +38,7 @@ boston-311-ai-system/
 
 ## Installation Instructions
 
-**Prerequisites:** Python 3.9+, Node.js 18+, Docker, Terraform 1.5+, GCP account with billing
+**Prerequisites:** Python 3.9+, Node.js 18+, Docker, Terraform 1.5+
 ```bash
 # Clone repository
 git clone https://github.com/sharonjennifer/boston-311-ai-system.git
