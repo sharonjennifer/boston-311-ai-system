@@ -43,12 +43,12 @@ boston-311-ai-system/
 
 ### Prerequisites
 
-- Python 3.9+
-- Node.js 18+
-- Docker & Docker Compose
-- GCP account with billing enabled
-- Terraform 1.5+
-- Git
+- **Python 3.9+**
+- **Node.js 18+**
+- **Docker & Docker Compose**
+- **GCP account** with billing enabled
+- **Terraform 1.5+**
+- **Git**
 
 ### Step 1: Clone Repository
 ```bash
@@ -73,7 +73,9 @@ cp .env.example .env           # Mac/Linux
 # Edit .env with your credentials
 # Required: GOOGLE_CLOUD_PROJECT, API keys, JWT secret
 Step 4: GCP Authentication
-bash# Authenticate
+bash# Install gcloud CLI: https://cloud.google.com/sdk/docs/install
+
+# Authenticate
 gcloud auth login
 gcloud auth application-default login
 
@@ -84,11 +86,20 @@ gcloud config set project YOUR_PROJECT_ID
 gcloud services enable bigquery.googleapis.com composer.googleapis.com run.googleapis.com aiplatform.googleapis.com
 Step 5: Deploy Infrastructure
 bashcd infra/terraform
+
+# Initialize Terraform
 terraform init
+
+# Review deployment plan
 terraform plan -var-file=environments/dev.tfvars
+
+# Deploy infrastructure
 terraform apply -var-file=environments/dev.tfvars
 Step 6: Verify Installation
-bashpytest tests/
+bash# Run tests
+pytest tests/
+
+# Check code quality
 flake8 services/ models/ data_pipelines/
 black --check .
 
@@ -101,12 +112,19 @@ gsutil -m rsync -r data_pipelines/dags $DAGS_BUCKET
 # Trigger manual run
 gcloud composer environments run YOUR_ENV --location us-central1 dags trigger ingest_311_data
 Training ML Models
-bashsource venv/bin/activate
+bash# Activate Python environment
+source venv/bin/activate
+
+# Train priority scoring model
 python models/training/train_priority.py
+
+# Train clustering model
 python models/training/train_clustering.py
+
+# Evaluate model performance
 python models/evaluation/evaluate_models.py
 Deploying Services
-bash# Deploy chatbot API
+bash# Build and deploy chatbot API
 cd services/chat_api
 gcloud builds submit --tag gcr.io/YOUR_PROJECT/chat-api
 gcloud run deploy chat-api --image gcr.io/YOUR_PROJECT/chat-api --region us-central1
@@ -117,21 +135,40 @@ gcloud builds submit --tag gcr.io/YOUR_PROJECT/priority-service
 gcloud run deploy priority-service --image gcr.io/YOUR_PROJECT/priority-service --region us-central1
 Running Frontend Locally
 bashcd webapp/frontend
+
+# Install dependencies
 npm install
+
+# Create local environment file
+cat > .env.local << EOF
+NEXT_PUBLIC_API_URL=https://YOUR_API_URL
+NEXT_PUBLIC_MAPBOX_TOKEN=YOUR_TOKEN
+EOF
+
+# Start development server
 npm run dev
 # Visit http://localhost:3000
 Using the Chatbot API
-bash# Query case status
+bash# Example: Query case status
 curl -X POST https://YOUR_API_URL/chat/query \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query": "What is the status of case 101004123?"}'
 
-# Get community insights
+# Example: Get community insights
 curl -X POST https://YOUR_API_URL/chat/query \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"query": "Top complaints in Dorchester this month?"}'
+Monitoring System Health
+bash# View Cloud Monitoring dashboard
+gcloud monitoring dashboards list
+
+# Check data pipeline status
+gcloud composer environments run YOUR_ENV --location us-central1 dags list
+
+# View service logs
+gcloud run services logs read chat-api --region us-central1
 
 Development Workflow
 Branching Strategy
@@ -142,15 +179,26 @@ feature/* - New features
 bugfix/* - Bug fixes
 
 Making Changes
-bashgit checkout -b feature/your-feature-name
+bash# Create feature branch
+git checkout -b feature/your-feature-name
+
+# Make changes and test
 pytest tests/
+flake8 services/
+
+# Commit with conventional format
 git commit -m "feat(chat): add case status lookup"
+
+# Push and create pull request
 git push origin feature/your-feature-name
 Running Tests
 bash# All tests
 pytest tests/
 
-# With coverage
+# Specific test file
+pytest tests/unit/test_chat_api.py
+
+# With coverage report
 pytest tests/ --cov=services --cov=models --cov-report=html
 
 Common Tasks
@@ -179,30 +227,30 @@ Deploy service
 
 
 Troubleshooting
-Terraform fails with permission errors
-Ensure your GCP user has Owner or Editor role
-Airflow DAGs not appearing
-Check DAG syntax with python data_pipelines/dags/YOUR_DAG.py
-Cloud Run deployment fails
-Check build logs with gcloud builds log BUILD_ID
-Frontend cannot connect to API
-Verify API URL in .env.local and check CORS settings
-Model inference errors
-Check model weights are properly loaded and input format matches training data
+Issue: Terraform fails with permission errors
+Solution: Ensure your GCP user has Owner or Editor role
+Issue: Airflow DAGs not appearing
+Solution: Check DAG syntax with python data_pipelines/dags/YOUR_DAG.py
+Issue: Cloud Run deployment fails
+Solution: Check build logs with gcloud builds log BUILD_ID
+Issue: Frontend cannot connect to API
+Solution: Verify API URL in .env.local and check CORS settings
+Issue: Model inference errors
+Solution: Check model weights are properly loaded and input format matches training data
 
 Documentation
 
-Architecture Overview
-Setup Guide
-API Reference
-Monitoring Plan
+Architecture Overview - System design and data flow
+Setup Guide - Detailed installation steps
+API Reference - Complete API documentation
+Monitoring Plan - Observability strategy
 
 
 Contributing
 Pull requests require:
 
 1 code review approval
-Passing CI tests
+Passing CI tests (linting, unit tests, integration tests)
 Updated documentation for new features
 Conventional commit messages
 
