@@ -59,6 +59,8 @@ def main():
         
         if len(records) < PAGE_SIZE:
             break
+        if total > 50000:
+            break
     
     print(f"Fetched {total} records after _id > {args.since}.")
     
