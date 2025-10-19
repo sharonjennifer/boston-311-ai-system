@@ -10,8 +10,6 @@ from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesyste
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
 
-from google.cloud import bigquery
-
 DAG_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = DAG_DIR.parent
 if str(PROJECT_ROOT) not in sys.path:
@@ -69,18 +67,12 @@ def fetch_delta_to_local(path):
         except FileNotFoundError: pass
         return False
     
+    Variable.set(WM_VAR_KEY, str(max_id_seen))
     return True
 
 def file_exists(path):
     return os.path.exists(path)
-
-def update_watermark_from_target():
-    client = bigquery.Client(project=GCP_PROJECT_ID)
-    query = f"SELECT COALESCE(MAX(_id), 0) AS max_id FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_TGT}`"
-    rows = client.query(query).result()
-    max_id = next(iter(rows)).max_id
-    Variable.set(WM_VAR_KEY, str(max_id))
-            
+        
 default_args = {"owner": "boston311", "retries": 1, "retry_delay": timedelta(minutes=5)}
 
 with DAG(
@@ -141,10 +133,5 @@ with DAG(
         configuration={"query": {"query": merge_sql, "useLegacySql": False}},
         location="US",
     )
-    
-    update_wm = PythonOperator(
-        task_id="update_watermark",
-        python_callable=update_watermark_from_target,
-    )
 
-    fetch_delta >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> merge_to_target >> update_wm
+    fetch_delta >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> merge_to_target
