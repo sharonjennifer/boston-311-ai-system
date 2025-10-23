@@ -1,4 +1,4 @@
-import os, json, logging
+import os, json, logging, time
 from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
@@ -72,6 +72,7 @@ def fetch_daily_data_to_local(path):
             logger.info("[daily] Page %d: +%d rows (last_id=%s)", pages, len(records), last_id)
             if len(records) < PAGE_SIZE:
                 break
+            time.sleep(0.25)
 
     logger.info("[daily] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
                 total, pages, min_id, max_id, iso_now)

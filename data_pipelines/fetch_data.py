@@ -31,11 +31,19 @@ def _do_request(params):
             time.sleep(BACKOFF_SECS * attempt)
 
 def fetch_window(where_sql: str, start_after_id: int = 0, limit: int = PAGE_SIZE):
+    clauses = []
+    if where_sql and where_sql.strip() and where_sql.strip() != "1=1":
+        clauses.append(f"({where_sql})")
+    clauses.append(f"_id > {start_after_id}")
+
+    where = " AND ".join(clauses)
+    
     sql = (
         f'SELECT * FROM "{RESOURCE_ID}" '
-        f"WHERE ({where_sql}) AND _id > {start_after_id} "
+        f"WHERE {where} "
         f"ORDER BY _id "
         f"LIMIT {limit}"
     )
+
     logger.debug("SQL start_after_id: %s", str(start_after_id))
     return _do_request({"sql": sql})

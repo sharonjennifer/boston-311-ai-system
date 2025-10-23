@@ -1,4 +1,4 @@
-import os, json, logging
+import os, json, logging, time
 from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
@@ -41,7 +41,7 @@ def get_recent_iso(days):
 
 def fetch_weekly_data_to_local(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    where_sql = "1=1"
+    where_sql = None
 
     iso_now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     total = 0
@@ -71,6 +71,7 @@ def fetch_weekly_data_to_local(path):
             logger.info("[full] Page %d: +%d rows (last_id=%s)", pages, len(records), last_id)
             if len(records) < PAGE_SIZE:
                 break
+            time.sleep(0.25)
 
     logger.info("[full] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
                 total, pages, min_id, max_id, iso_now)
