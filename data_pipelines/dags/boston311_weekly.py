@@ -20,13 +20,13 @@ logger.setLevel(logging.INFO)
 GCP_PROJECT_ID = Variable.get("BOSTON311_PROJECT", default_var="boston311-mlops")
 BQ_DATASET     = Variable.get("BOSTON311_DATASET", default_var="boston311")
 BQ_TABLE_TGT   = Variable.get("BOSTON311_TABLE_TGT", default_var="service_requests_2025")
-BQ_TABLE_STG   = Variable.get("BOSTON311_TABLE_STG_DAILY", default_var="service_requests_2025_staging_daily")
+BQ_TABLE_STG   = Variable.get("BOSTON311_TABLE_STG_WEEKLY", default_var="service_requests_2025_staging_weekly")
 GCS_BUCKET     = Variable.get("BOSTON311_BUCKET",  default_var="boston311-bucket")
 GCS_PREFIX     = Variable.get("BOSTON311_PREFIX",  default_var="boston311/raw/2025")
 PAGE_SIZE      = fetch_data.PAGE_SIZE
 BQ_LOCATION    = Variable.get("BOSTON311_BQ_LOCATION", default_var="US")
 
-MERGE_COLS = [
+TARGET_COLS = [
     "_id","case_enquiry_id","open_dt","sla_target_dt","closed_dt","on_time","case_status",
     "closure_reason","case_title","subject","reason","type","queue","department",
     "submitted_photo","closed_photo","location","fire_district","pwd_district",
@@ -35,14 +35,13 @@ MERGE_COLS = [
     "geom_4326","source","_ingested_at"
 ]
 
-def get_recent_iso(days=28):
+def get_recent_iso(days):
     d = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
     return f"{d}T00:00:00Z"
 
-def fetch_daily_data_to_local(path):
+def fetch_weekly_data_to_local(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    recent_iso = get_recent_iso(28)
-    where_sql = f"open_dt >= '{recent_iso}'"
+    where_sql = "1=1"
 
     iso_now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
     total = 0
@@ -51,8 +50,8 @@ def fetch_daily_data_to_local(path):
     max_id = None
     pages = 0
 
-    logger.info("[daily] Window: open_dt >= %s", recent_iso)
-    logger.info("[daily] Writing to %s", path)
+    logger.info("[full] Fetching entire dataset")
+    logger.info("[full] Writing to %s", path)
 
     with open(path, "w", encoding="utf-8") as f:
         while True:
@@ -69,7 +68,7 @@ def fetch_daily_data_to_local(path):
                     min_id = rid if min_id is None else min(min_id, rid)
                     max_id = rid if max_id is None else max(max_id, rid)
             total += len(records)
-            logger.info("[daily] Page %d: +%d rows (last_id=%s)", pages, len(records), last_id)
+            logger.info("[full] Page %d: +%d rows (last_id=%s)", pages, len(records), last_id)
             if len(records) < PAGE_SIZE:
                 break
 
@@ -81,45 +80,41 @@ def fetch_daily_data_to_local(path):
 def file_exists(path):
     exists = os.path.exists(path)
     if not exists:
-        logger.info("[recent] No file at %s", path)
+        logger.info("[full] No file at %s", path)
     return exists
 
-def merge_sql(staging, target):
-    sets = ",\n    ".join([f"{c} = S.{c}" for c in MERGE_COLS if c not in ("case_enquiry_id", "_id")])
-    cols = ", ".join(MERGE_COLS)
-    scols = ", ".join([f"S.{c}" for c in MERGE_COLS])
+def overwrite_sql(staging, target):
+    cols  = ", ".join(TARGET_COLS)
+    s_cols= ", ".join([f"S.{c}" for c in TARGET_COLS])
     return f"""
-    MERGE `{GCP_PROJECT_ID}.{BQ_DATASET}.{target}` T
-    USING (
-      SELECT *
-      FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{staging}`
-      WHERE case_enquiry_id IS NOT NULL
-      QUALIFY ROW_NUMBER()
-             OVER (PARTITION BY case_enquiry_id ORDER BY _ingested_at DESC) = 1
-    ) S
-    ON T.case_enquiry_id = S.case_enquiry_id
-    WHEN MATCHED AND (T._ingested_at IS NULL OR S._ingested_at >= T._ingested_at) THEN
-      UPDATE SET
-        {sets}
-    WHEN NOT MATCHED THEN
-      INSERT ({cols})
-      VALUES ({scols});
+    CREATE OR REPLACE TEMP TABLE _dedup AS
+    SELECT *
+    FROM `{GCP_PROJECT_ID}.{BQ_DATASET}.{staging}`
+    WHERE case_enquiry_id IS NOT NULL
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY case_enquiry_id ORDER BY _ingested_at DESC) = 1;
+    
+    TRUNCATE TABLE `{GCP_PROJECT_ID}.{BQ_DATASET}.{target}`;
+
+    INSERT INTO `{GCP_PROJECT_ID}.{BQ_DATASET}.{target}` ({cols})
+    SELECT {cols}
+    FROM _dedup;
     """
+
 
 default_args = {"owner": "boston311", "retries": 1, "retry_delay": timedelta(minutes=5)}
 
 with DAG(
-    dag_id="boston311_daily",
+    dag_id="boston311_weekly",
     default_args=default_args,
     start_date=datetime(2025, 10, 1),
-    schedule="@daily",
+    schedule="0 4 * * 1",
     catchup=False,
     max_active_runs=1,
-    tags=["boston311","bigquery","gcs", "daily"],
+    tags=["boston311","bigquery","gcs", "weekly"],
 ) as dag:
 
-    local_path = "/tmp/boston311_daily_{{ ds_nodash }}.jsonl"
-    gcs_obj    = f"{GCS_PREFIX}/{{{{ ds }}}}/boston311_daily_{{{{ ds_nodash }}}}.jsonl"
+    local_path = "/tmp/boston311_weekly_{{ ds_nodash }}.jsonl"
+    gcs_obj    = f"{GCS_PREFIX}/{{{{ ds }}}}/boston311_weekly_{{{{ ds_nodash }}}}.jsonl"
     
     create_target_table = BigQueryInsertJobOperator(
         task_id="create_target_if_missing",
@@ -167,9 +162,9 @@ with DAG(
         location=BQ_LOCATION,
     )
 
-    fetch_recent = PythonOperator(
-        task_id="fetch_daily_data",
-        python_callable=fetch_daily_data_to_local,
+    fetch_full = PythonOperator(
+        task_id="fetch_weekly_data",
+        python_callable=fetch_weekly_data_to_local,
         op_kwargs={"path": local_path},
     )
 
@@ -200,9 +195,9 @@ with DAG(
         location=BQ_LOCATION,
     )
 
-    do_merge = BigQueryInsertJobOperator(
+    overwrite_target = BigQueryInsertJobOperator(
         task_id="merge_to_target",
-        configuration={"query": {"query": merge_sql(BQ_TABLE_STG, BQ_TABLE_TGT), "useLegacySql": False}},
+        configuration={"query": {"query": overwrite_sql(BQ_TABLE_STG, BQ_TABLE_TGT), "useLegacySql": False}},
         location=BQ_LOCATION,
     )
 
@@ -213,4 +208,4 @@ with DAG(
     #     trigger_rule=TriggerRule.ALL_DONE,
     # )
 
-    create_target_table >> fetch_recent >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> do_merge
+    create_target_table >> fetch_full >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> overwrite_target
