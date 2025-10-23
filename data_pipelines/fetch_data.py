@@ -1,13 +1,14 @@
-import argparse
+import os
 import time
 import requests
 
-BASE_URL = "https://data.boston.gov/api/3/action/datastore_search_sql"
-RESOURCE_ID = "9d7c2214-4709-478a-a2e8-fb2020a5bb94"
-PAGE_SIZE = 5000
-TIMEOUT = 30
+BASE_URL   = os.getenv("BOSTON311_BASE_URL", "https://data.boston.gov/api/3/action/datastore_search_sql")
+RESOURCE_ID = os.getenv("BOSTON311_RESOURCE_ID", "9d7c2214-4709-478a-a2e8-fb2020a5bb94")
+PAGE_SIZE   = int(os.getenv("BOSTON311_PAGE_SIZE", "5000"))
+TIMEOUT     = 30
 MAX_RETRIES = 3
-BACKOFF_SECS = 2
+BACKOFF_SECS= 2
+HEADERS     = {"User-Agent": "boston311-composer/1.0"}
 
 def fetch_page(last_id, limit = PAGE_SIZE):
     sql = (
@@ -31,38 +32,3 @@ def fetch_page(last_id, limit = PAGE_SIZE):
                 raise
             time.sleep(BACKOFF_SECS * attempt)
     raise RuntimeError("Unreachable")
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "--since",
-        type=int,
-        required=True, 
-        default=0,
-    )
-    args = parser.parse_args()
-    
-    if args.since < 0:
-        raise SystemExit("--since must be a non-negative integer.")
-    
-    last_id = args.since
-    total = 0
-    
-    while True:
-        records = fetch_page(last_id)
-        if not records:
-            break
-        
-        total += len(records)
-
-        last_id = records[-1].get("_id", last_id)
-        
-        if len(records) < PAGE_SIZE:
-            break
-        if total > 50000:
-            break
-    
-    print(f"Fetched {total} records after _id > {args.since}.")
-    
-if __name__ == "__main__":
-    main()
