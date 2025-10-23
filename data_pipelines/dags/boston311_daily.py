@@ -32,7 +32,7 @@ MERGE_COLS = [
     "submitted_photo","closed_photo","location","fire_district","pwd_district",
     "city_council_district","police_district","neighborhood","neighborhood_services_district",
     "ward","precinct","location_street_name","location_zipcode","latitude","longitude",
-    "geom_4326","source","_ingested_at"
+    "geom_4326","source","_ingested_at","_full_text"
 ]
 
 def get_recent_iso(days=28):

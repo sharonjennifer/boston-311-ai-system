@@ -32,7 +32,7 @@ TARGET_COLS = [
     "submitted_photo","closed_photo","location","fire_district","pwd_district",
     "city_council_district","police_district","neighborhood","neighborhood_services_district",
     "ward","precinct","location_street_name","location_zipcode","latitude","longitude",
-    "geom_4326","source","_ingested_at"
+    "geom_4326","source","_ingested_at","_full_text"
 ]
 
 def get_recent_iso(days):
@@ -72,7 +72,7 @@ def fetch_weekly_data_to_local(path):
             if len(records) < PAGE_SIZE:
                 break
 
-    logger.info("[daily] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
+    logger.info("[full] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
                 total, pages, min_id, max_id, iso_now)
     
     return True
@@ -196,7 +196,7 @@ with DAG(
     )
 
     overwrite_target = BigQueryInsertJobOperator(
-        task_id="merge_to_target",
+        task_id="overwrite_to_target",
         configuration={"query": {"query": overwrite_sql(BQ_TABLE_STG, BQ_TABLE_TGT), "useLegacySql": False}},
         location=BQ_LOCATION,
     )
