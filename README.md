@@ -19,17 +19,17 @@ Infrastructure: Terraform (GCP)
 
 ```mermaid
 flowchart TD
-    subgraph Composer [Google Cloud Composer / Airflow]
-        D1[boston311_daily\nIncremental Ingestion\n(Last 28 days)] --> GCS[(Google Cloud Storage)]
-        D2[boston311_weekly\nFull Refresh + Deduplication] --> GCS
-        D3[boston311_build_filtered_tables\nChatbot & Dashboard Views] --> BQ2[(BigQuery\nProduction Tables)]
-        D4[airflow_monitoring\nLiveness Probe] --> Composer
+    subgraph Composer["Google Cloud Composer / Airflow"]
+        D1["boston311_daily - Incremental Ingestion (Last 28 days)"] --> GCS["Google Cloud Storage"]
+        D2["boston311_weekly - Full Refresh + Deduplication"] --> GCS
+        D3["boston311_build_filtered_tables - Chatbot & Dashboard Views"] --> BQ2["BigQuery Production Tables"]
+        D4["airflow_monitoring - Liveness Probe"] --> Composer
     end
 
-    GCS --> BQ1[(BigQuery\nStaging)]
+    GCS --> BQ1["BigQuery Staging"]
     BQ1 --> BQ2
-    BQ2 --> API[FastAPI\nChatbot & APIs]
-    API --> WEB[Next.js + Mapbox\nVisualization]
+    BQ2 --> API["FastAPI - Chatbot & APIs"]
+    API --> WEB["Next.js + Mapbox - Visualization"]
 
     style Composer fill:#f5f5f5,stroke:#aaa,stroke-width:1px
     style GCS fill:#fff3cd,stroke:#999
@@ -38,6 +38,7 @@ flowchart TD
     style API fill:#d4edda,stroke:#999
     style WEB fill:#f8d7da,stroke:#999
 ```
+
 
 
 ⚡ Installation
