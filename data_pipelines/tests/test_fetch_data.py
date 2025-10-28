@@ -7,7 +7,7 @@ from pathlib import Path
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import fetch_data
+import data_pipelines.scripts.fetch_data as fetch_data 
 
 
 class TestFetchWindow:
