@@ -15,7 +15,9 @@ Backend: FastAPI (deployed on Cloud Run)
 Frontend: Next.js + Mapbox
 Infrastructure: Terraform (GCP)
 
-🧩 System Architecture
+## 🧩 System Architecture
+
+```mermaid
 flowchart TD
     subgraph Composer [Google Cloud Composer / Airflow]
         D1[boston311_daily<br>Incremental Ingestion<br>(Last 28 days)] --> GCS[(Google Cloud Storage)]
@@ -35,6 +37,7 @@ flowchart TD
     style BQ2 fill:#bee5eb,stroke:#999
     style API fill:#d4edda,stroke:#999
     style WEB fill:#f8d7da,stroke:#999
+```
 
 ⚡ Installation
 Prerequisites
