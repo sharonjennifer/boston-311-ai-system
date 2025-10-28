@@ -24,7 +24,8 @@ flowchart TD
         D1["boston311_daily – Incremental Ingestion "] --> GCS["🗂️ Google Cloud Storage"]
         D2["boston311_weekly – Full Refresh + Deduplication"] --> GCS
         D3["boston311_build_filtered_tables – Chatbot & Dashboard Views"] --> BQ2["📊 BigQuery Production Tables"]
-        D4["airflow_monitoring – Liveness Probe"]
+        D4["airflow_monitoring – Liveness Probe"] -.-> T0        
+
     end
 
     GCS --> BQ1["🧾 BigQuery Staging"]
