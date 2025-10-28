@@ -12,7 +12,9 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobO
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 
-import data_pipelines.scripts.fetch_data as fetch_data 
+import fetch_data
+
+from email_alerts import on_dag_success, on_dag_failure
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -101,7 +103,6 @@ def overwrite_sql(staging, target):
     FROM _dedup;
     """
 
-
 default_args = {"owner": "boston311", "retries": 1, "retry_delay": timedelta(minutes=5)}
 
 with DAG(
@@ -111,7 +112,10 @@ with DAG(
     schedule="0 4 * * 1",
     catchup=False,
     max_active_runs=1,
-    tags=["boston311","bigquery","gcs", "weekly"],
+    tags=["boston311","bigquery","gcs","weekly"],
+
+    on_success_callback=on_dag_success,
+    on_failure_callback=on_dag_failure,
 ) as dag:
 
     local_path = "/tmp/boston311_weekly_{{ ds_nodash }}.jsonl"
@@ -201,12 +205,5 @@ with DAG(
         configuration={"query": {"query": overwrite_sql(BQ_TABLE_STG, BQ_TABLE_TGT), "useLegacySql": False}},
         location=BQ_LOCATION,
     )
-
-    # truncate_stg = BigQueryInsertJobOperator(
-    #     task_id="truncate_staging",
-    #     configuration={"query": {"query": f"TRUNCATE TABLE `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_STG}`", "useLegacySql": False}},
-    #     location=BQ_LOCATION,
-    #     trigger_rule=TriggerRule.ALL_DONE,
-    # )
 
     create_target_table >> fetch_full >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> overwrite_target

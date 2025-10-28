@@ -1,4 +1,7 @@
-import os, json, logging, time
+import os
+import json
+import logging
+import time
 from datetime import datetime, timedelta, timezone
 
 from airflow import DAG
@@ -8,45 +11,46 @@ from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
-from airflow.operators.email import EmailOperator
 
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 
-import data_pipelines.scripts.fetch_data as fetch_data
+import fetch_data
+
+from email_alerts import on_dag_success, on_dag_failure
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
 
 GCP_PROJECT_ID = Variable.get("BOSTON311_PROJECT", default_var="boston311-mlops")
-BQ_DATASET     = Variable.get("BOSTON311_DATASET", default_var="boston311")
-BQ_TABLE_TGT   = Variable.get("BOSTON311_TABLE_TGT", default_var="service_requests_2025")
-BQ_TABLE_STG   = Variable.get("BOSTON311_TABLE_STG_DAILY", default_var="service_requests_2025_staging_daily")
-GCS_BUCKET     = Variable.get("BOSTON311_BUCKET",  default_var="boston311-bucket")
-GCS_PREFIX     = Variable.get("BOSTON311_PREFIX",  default_var="boston311/raw/2025")
-PAGE_SIZE      = fetch_data.PAGE_SIZE
-BQ_LOCATION    = Variable.get("BOSTON311_BQ_LOCATION", default_var="US")
-ALERT_EMAIL    = Variable.get("BOSTON311_ALERT_EMAIL", default_var="harishvtcp@gmail.com")  
+BQ_DATASET = Variable.get("BOSTON311_DATASET", default_var="boston311")
+BQ_TABLE_TGT = Variable.get("BOSTON311_TABLE_TGT", default_var="service_requests_2025")
+BQ_TABLE_STG = Variable.get("BOSTON311_TABLE_STG_DAILY", default_var="service_requests_2025_staging_daily")
+GCS_BUCKET = Variable.get("BOSTON311_BUCKET", default_var="boston311-bucket")
+GCS_PREFIX = Variable.get("BOSTON311_PREFIX", default_var="boston311/raw/2025")
+PAGE_SIZE = fetch_data.PAGE_SIZE
+BQ_LOCATION = Variable.get("BOSTON311_BQ_LOCATION", default_var="US")
 
 MERGE_COLS = [
-    "_id","case_enquiry_id","open_dt","sla_target_dt","closed_dt","on_time","case_status",
-    "closure_reason","case_title","subject","reason","type","queue","department",
-    "submitted_photo","closed_photo","location","fire_district","pwd_district",
-    "city_council_district","police_district","neighborhood","neighborhood_services_district",
-    "ward","precinct","location_street_name","location_zipcode","latitude","longitude",
-    "geom_4326","source","_ingested_at","_full_text"
+    "_id", "case_enquiry_id", "open_dt", "sla_target_dt", "closed_dt", "on_time", "case_status",
+    "closure_reason", "case_title", "subject", "reason", "type", "queue", "department",
+    "submitted_photo", "closed_photo", "location", "fire_district", "pwd_district",
+    "city_council_district", "police_district", "neighborhood", "neighborhood_services_district",
+    "ward", "precinct", "location_street_name", "location_zipcode", "latitude", "longitude",
+    "geom_4326", "source", "_ingested_at", "_full_text"
 ]
 
 def get_recent_iso(days=28):
     d = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
     return f"{d}T00:00:00Z"
 
+
 def fetch_daily_data_to_local(path):
     os.makedirs(os.path.dirname(path), exist_ok=True)
     recent_iso = get_recent_iso(28)
     where_sql = f"open_dt >= '{recent_iso}'"
 
-    iso_now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00","Z")
+    iso_now = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     total = 0
     last_id = 0
     min_id = None
@@ -76,15 +80,19 @@ def fetch_daily_data_to_local(path):
                 break
             time.sleep(0.25)
 
-    logger.info("[daily] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
-                total, pages, min_id, max_id, iso_now)
+    logger.info(
+        "[daily] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
+        total, pages, min_id, max_id, iso_now
+    )
     return True
+
 
 def file_exists(path):
     exists = os.path.exists(path)
     if not exists:
         logger.info("[recent] No file at %s", path)
     return exists
+
 
 def merge_sql(staging, target):
     sets = ",\n    ".join([f"{c} = S.{c}" for c in MERGE_COLS if c not in ("case_enquiry_id", "_id")])
@@ -112,8 +120,6 @@ default_args = {
     "owner": "boston311",
     "retries": 1,
     "retry_delay": timedelta(minutes=5),
-    "email_on_failure": False,
-    "email_on_retry": False,
 }
 
 with DAG(
@@ -123,16 +129,18 @@ with DAG(
     schedule="@daily",
     catchup=False,
     max_active_runs=1,
-    tags=["boston311","bigquery","gcs","daily"],
+    tags=["boston311", "bigquery", "gcs", "daily"],
+
+    on_success_callback=on_dag_success,
+    on_failure_callback=on_dag_failure,
 ) as dag:
 
     local_path = "/tmp/boston311_daily_{{ ds_nodash }}.jsonl"
-    gcs_obj    = f"{GCS_PREFIX}/{{{{ ds }}}}/boston311_daily_{{{{ ds_nodash }}}}.jsonl"
+    gcs_obj = f"{GCS_PREFIX}/{{{{ ds }}}}/boston311_daily_{{{{ ds_nodash }}}}.jsonl"
 
     create_target_table = BigQueryInsertJobOperator(
         task_id="create_target_if_missing",
-        configuration={"query": {"query":
-            f"""
+        configuration={"query": {"query": f"""
             CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_TGT}`
             (
             _ingested_at TIMESTAMP,
@@ -170,8 +178,7 @@ with DAG(
             case_enquiry_id INT64
             )
             PARTITION BY DATE(_ingested_at)
-            """,
-            "useLegacySql": False}},
+            """, "useLegacySql": False}},
         location=BQ_LOCATION,
     )
 
@@ -214,42 +221,4 @@ with DAG(
         location=BQ_LOCATION,
     )
 
-    notify_success = EmailOperator(
-        task_id="notify_success",
-        to=[ALERT_EMAIL],
-        subject="{{ dag.dag_id }} SUCCESS on {{ ds }}",
-        html_content="""
-            <h3>Boston311 Daily Ingestion - SUCCESS</h3>
-            <ul>
-              <li><b>DAG:</b> {{ dag.dag_id }}</li>
-              <li><b>Execution date:</b> {{ ds }}</li>
-              <li><b>Run ID:</b> {{ dag_run.run_id }}</li>
-              <li><b>State:</b> {{ dag_run.get_state() }}</li>
-            </ul>
-            <p>See Airflow logs for details.</p>
-        """,
-        trigger_rule=TriggerRule.ALL_SUCCESS, 
-        conn_id="smtp_default",
-    )
-
-    notify_failure = EmailOperator(
-        task_id="notify_failure",
-        to=[ALERT_EMAIL],
-        subject="{{ dag.dag_id }} FAILED on {{ ds }}",
-        html_content="""
-            <h3>Boston311 Daily Ingestion - FAILURE</h3>
-            <ul>
-              <li><b>DAG:</b> {{ dag.dag_id }}</li>
-              <li><b>Execution date:</b> {{ ds }}</li>
-              <li><b>Run ID:</b> {{ dag_run.run_id }}</li>
-              <li><b>State:</b> {{ dag_run.get_state() }}</li>
-            </ul>
-            <p>One or more tasks failed. Check Airflow logs.</p>
-        """,
-        trigger_rule=TriggerRule.ONE_FAILED,   
-        conn_id="smtp_default",
-    )
-
     create_target_table >> fetch_recent >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> do_merge
-    [create_target_table, fetch_recent, check_nonempty, upload_to_gcs, load_to_bq_staging, do_merge] >> notify_failure
-    do_merge >> notify_success
