@@ -66,17 +66,19 @@ flowchart TD
 ⚙️ Installation & Setup
 ⚡ Installation Prerequisites
 
-Make sure you have the following installed:
+Before setting up the project, ensure the following tools are installed on your system:
 
-Python 3.9+
+Python 3.9+ — Required for running backend pipelines and data scripts.
 
-Node.js 18+
+Node.js 18+ — Needed for the frontend (Next.js) application.
 
-Docker
+Docker — Used for containerization and environment consistency.
 
-Terraform 1.5+
+Terraform 1.5+ — Handles infrastructure provisioning on Google Cloud.
 
-Google Cloud SDK (gcloud)
+Google Cloud SDK (gcloud) — Required for authentication and resource management on GCP.
+
+
 Setup Instructions
 # 1️⃣ Clone the repository
 git clone https://github.com/sharonjennifer/boston-311-ai-system.git
