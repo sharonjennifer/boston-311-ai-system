@@ -12,7 +12,7 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobO
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 
-import fetch_data 
+import data_pipelines.scripts.fetch_data as fetch_data 
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
