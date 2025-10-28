@@ -188,13 +188,12 @@ boston-311-ai-system/
 
 ---
 
-## ☁️ Deployment
+## 🚀 Usage Guidelines
 
-### Deploy Infrastructure
+### Deploy Services
 ```bash
-cd infra/terraform
-terraform init
-terraform apply
+gcloud builds submit --tag gcr.io/boston311-mlops/SERVICE_NAME
+gcloud run deploy SERVICE_NAME --image gcr.io/boston311-mlops/SERVICE_NAME
 ```
 
 ### Deploy DAGs
@@ -204,11 +203,29 @@ Upload to Composer bucket:
 gsutil cp dags/*.py gs://boston311-composer/dags/
 ```
 
-### Deploy API
+### Run Frontend Locally
 ```bash
-gcloud builds submit --tag gcr.io/boston311-mlops/api-service
-gcloud run deploy api-service --image gcr.io/boston311-mlops/api-service
+cd webapp/frontend
+npm install
+npm run dev
 ```
+
+### Train ML Models
+```bash
+python models/training/train_priority.py
+python models/training/train_clustering.py
+```
+
+---
+
+## 👨‍💻 Development Workflow
+
+- **Branches**: 
+  - `main` (production)
+  - `feature/*` (new features)
+  - `bugfix/*` (fixes)
+- **Commits**: Use conventional commits (e.g., `feat: add feature`, `fix: resolve bug`)
+- **PRs**: Require 1 review and passing CI tests
 
 ---
 
@@ -221,6 +238,15 @@ gcloud run deploy api-service --image gcr.io/boston311-mlops/api-service
 | **Cloud Logging** | Centralized task logs |
 | **Cloud Monitoring** | Alerting for failures |
 | **BigQuery Console** | Verify data refreshes |
+
+---
+
+## 📚 Documentation
+
+- [Architecture](docs/architecture.md)
+- [Setup Guide](docs/setup.md)
+- [API Reference](docs/api.md)
+- [Monitoring](docs/monitoring.md)
 
 ---
 
