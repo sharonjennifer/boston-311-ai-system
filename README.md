@@ -188,35 +188,6 @@ boston-311-ai-system/
 
 ---
 
-## 🚀 Usage Guidelines
-
-### Deploy Services
-```bash
-gcloud builds submit --tag gcr.io/boston311-mlops/SERVICE_NAME
-gcloud run deploy SERVICE_NAME --image gcr.io/boston311-mlops/SERVICE_NAME
-```
-
-### Deploy DAGs
-
-Upload to Composer bucket:
-```bash
-gsutil cp dags/*.py gs://boston311-composer/dags/
-```
-
-### Run Frontend Locally
-```bash
-cd webapp/frontend
-npm install
-npm run dev
-```
-
-### Train ML Models
-```bash
-python models/training/train_priority.py
-python models/training/train_clustering.py
-```
-
----
 
 ## 👨‍💻 Development Workflow
 
