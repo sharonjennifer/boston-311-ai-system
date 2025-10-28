@@ -8,11 +8,12 @@ from airflow.operators.python import PythonOperator, ShortCircuitOperator
 from airflow.providers.google.cloud.transfers.local_to_gcs import LocalFilesystemToGCSOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobOperator
+from airflow.operators.email import EmailOperator
 
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 
-import data_pipelines.scripts.fetch_data as fetch_data 
+import data_pipelines.scripts.fetch_data as fetch_data
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
@@ -25,6 +26,7 @@ GCS_BUCKET     = Variable.get("BOSTON311_BUCKET",  default_var="boston311-bucket
 GCS_PREFIX     = Variable.get("BOSTON311_PREFIX",  default_var="boston311/raw/2025")
 PAGE_SIZE      = fetch_data.PAGE_SIZE
 BQ_LOCATION    = Variable.get("BOSTON311_BQ_LOCATION", default_var="US")
+ALERT_EMAIL    = Variable.get("BOSTON311_ALERT_EMAIL", default_var="harishvtcp@gmail.com")  
 
 MERGE_COLS = [
     "_id","case_enquiry_id","open_dt","sla_target_dt","closed_dt","on_time","case_status",
@@ -76,7 +78,6 @@ def fetch_daily_data_to_local(path):
 
     logger.info("[daily] Done. Wrote %d rows, pages=%d, _id range=[%s..%s], _ingested_at=%s",
                 total, pages, min_id, max_id, iso_now)
-    
     return True
 
 def file_exists(path):
@@ -107,7 +108,13 @@ def merge_sql(staging, target):
       VALUES ({scols});
     """
 
-default_args = {"owner": "boston311", "retries": 1, "retry_delay": timedelta(minutes=5)}
+default_args = {
+    "owner": "boston311",
+    "retries": 1,
+    "retry_delay": timedelta(minutes=5),
+    "email_on_failure": False,
+    "email_on_retry": False,
+}
 
 with DAG(
     dag_id="boston311_daily",
@@ -116,12 +123,12 @@ with DAG(
     schedule="@daily",
     catchup=False,
     max_active_runs=1,
-    tags=["boston311","bigquery","gcs", "daily"],
+    tags=["boston311","bigquery","gcs","daily"],
 ) as dag:
 
     local_path = "/tmp/boston311_daily_{{ ds_nodash }}.jsonl"
     gcs_obj    = f"{GCS_PREFIX}/{{{{ ds }}}}/boston311_daily_{{{{ ds_nodash }}}}.jsonl"
-    
+
     create_target_table = BigQueryInsertJobOperator(
         task_id="create_target_if_missing",
         configuration={"query": {"query":
@@ -207,11 +214,42 @@ with DAG(
         location=BQ_LOCATION,
     )
 
-    # truncate_stg = BigQueryInsertJobOperator(
-    #     task_id="truncate_staging",
-    #     configuration={"query": {"query": f"TRUNCATE TABLE `{GCP_PROJECT_ID}.{BQ_DATASET}.{BQ_TABLE_STG}`", "useLegacySql": False}},
-    #     location=BQ_LOCATION,
-    #     trigger_rule=TriggerRule.ALL_DONE,
-    # )
+    notify_success = EmailOperator(
+        task_id="notify_success",
+        to=[ALERT_EMAIL],
+        subject="{{ dag.dag_id }} SUCCESS on {{ ds }}",
+        html_content="""
+            <h3>Boston311 Daily Ingestion - SUCCESS</h3>
+            <ul>
+              <li><b>DAG:</b> {{ dag.dag_id }}</li>
+              <li><b>Execution date:</b> {{ ds }}</li>
+              <li><b>Run ID:</b> {{ dag_run.run_id }}</li>
+              <li><b>State:</b> {{ dag_run.get_state() }}</li>
+            </ul>
+            <p>See Airflow logs for details.</p>
+        """,
+        trigger_rule=TriggerRule.ALL_SUCCESS, 
+        conn_id="smtp_default",
+    )
+
+    notify_failure = EmailOperator(
+        task_id="notify_failure",
+        to=[ALERT_EMAIL],
+        subject="{{ dag.dag_id }} FAILED on {{ ds }}",
+        html_content="""
+            <h3>Boston311 Daily Ingestion - FAILURE</h3>
+            <ul>
+              <li><b>DAG:</b> {{ dag.dag_id }}</li>
+              <li><b>Execution date:</b> {{ ds }}</li>
+              <li><b>Run ID:</b> {{ dag_run.run_id }}</li>
+              <li><b>State:</b> {{ dag_run.get_state() }}</li>
+            </ul>
+            <p>One or more tasks failed. Check Airflow logs.</p>
+        """,
+        trigger_rule=TriggerRule.ONE_FAILED,   
+        conn_id="smtp_default",
+    )
 
     create_target_table >> fetch_recent >> check_nonempty >> upload_to_gcs >> load_to_bq_staging >> do_merge
+    [create_target_table, fetch_recent, check_nonempty, upload_to_gcs, load_to_bq_staging, do_merge] >> notify_failure
+    do_merge >> notify_success
