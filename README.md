@@ -21,7 +21,7 @@ flowchart TD
     T0["☁️ Google Cloud Composer / Airflow"]:::title
 
     subgraph Composer[" "]
-        D1["boston311_daily – Incremental Ingestion (Last 28 days)"] --> GCS["🗂️ Google Cloud Storage"]
+        D1["boston311_daily – Incremental Ingestion "] --> GCS["🗂️ Google Cloud Storage"]
         D2["boston311_weekly – Full Refresh + Deduplication"] --> GCS
         D3["boston311_build_filtered_tables – Chatbot & Dashboard Views"] --> BQ2["📊 BigQuery Production Tables"]
         D4["airflow_monitoring – Liveness Probe"]
