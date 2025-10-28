@@ -20,24 +20,29 @@ Infrastructure: Terraform (GCP)
 ```mermaid
 flowchart TD
     subgraph Composer["Google Cloud Composer / Airflow"]
-        D1["boston311_daily - Incremental Ingestion (Last 28 days)"] --> GCS["Google Cloud Storage"]
-        D2["boston311_weekly - Full Refresh + Deduplication"] --> GCS
-        D3["boston311_build_filtered_tables - Chatbot & Dashboard Views"] --> BQ2["BigQuery Production Tables"]
-        D4["airflow_monitoring - Liveness Probe"]
+        D1["boston311_daily – Incremental Ingestion "] --> GCS["Google Cloud Storage"]
+        D2["boston311_weekly – Full Refresh + Deduplication"] --> GCS
+        D3["boston311_build_filtered_tables – Chatbot & Dashboard Views"] --> BQ2["BigQuery Production Tables"]
+        D4["airflow_monitoring – Liveness Probe"]
     end
 
     GCS --> BQ1["BigQuery Staging"]
     BQ1 --> BQ2
-    BQ2 --> API["FastAPI - Chatbot & APIs"]
-    API --> WEB["Next.js + Mapbox - Visualization"]
+    BQ2 --> API["FastAPI – Chatbot & APIs"]
+    API --> WEB["Next.js + Mapbox – Visualization"]
 
-    style Composer fill:#f5f5f5,stroke:#aaa,stroke-width:1px
-    style GCS fill:#fff3cd,stroke:#999
-    style BQ1 fill:#d1ecf1,stroke:#999
-    style BQ2 fill:#bee5eb,stroke:#999
-    style API fill:#d4edda,stroke:#999
-    style WEB fill:#f8d7da,stroke:#999
+    style Composer fill:#f2f2f2,stroke:#333,stroke-width:1px,color:#000
+    style GCS fill:#f9e79f,stroke:#555,stroke-width:1px,color:#000
+    style BQ1 fill:#aed6f1,stroke:#555,stroke-width:1px,color:#000
+    style BQ2 fill:#5dade2,stroke:#333,stroke-width:1px,color:#fff
+    style API fill:#58d68d,stroke:#333,stroke-width:1px,color:#000
+    style WEB fill:#f1948a,stroke:#333,stroke-width:1px,color:#000
+    style D1 fill:#212f3c,stroke:#555,stroke-width:1px,color:#fff
+    style D2 fill:#1c2833,stroke:#555,stroke-width:1px,color:#fff
+    style D3 fill:#283747,stroke:#555,stroke-width:1px,color:#fff
+    style D4 fill:#34495e,stroke:#555,stroke-width:1px,color:#fff
 ```
+
 
 ⚡ Installation
 Prerequisites
