@@ -23,7 +23,7 @@ flowchart TD
         D1["boston311_daily - Incremental Ingestion (Last 28 days)"] --> GCS["Google Cloud Storage"]
         D2["boston311_weekly - Full Refresh + Deduplication"] --> GCS
         D3["boston311_build_filtered_tables - Chatbot & Dashboard Views"] --> BQ2["BigQuery Production Tables"]
-        D4["airflow_monitoring - Liveness Probe"] --> Composer
+        D4["airflow_monitoring - Liveness Probe"]
     end
 
     GCS --> BQ1["BigQuery Staging"]
@@ -38,8 +38,6 @@ flowchart TD
     style API fill:#d4edda,stroke:#999
     style WEB fill:#f8d7da,stroke:#999
 ```
-
-
 
 ⚡ Installation
 Prerequisites
