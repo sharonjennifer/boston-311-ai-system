@@ -1,19 +1,28 @@
-Boston 311 AI System
-Project Overview
+# Boston 311 AI System
 
-The Boston 311 AI System is a scalable data pipeline and AI-driven analytics system designed to process and understand Boston’s non-emergency service request data.
-It automates the ingestion, cleaning, transformation, and deployment of city service data to support public dashboards and an LLM-powered chatbot that helps citizens get real-time updates and insights.
+## 🧭 Project Overview
+The **Boston 311 AI System** is a scalable data pipeline and AI-driven analytics system designed to process and understand Boston’s non-emergency service request data.  
+It automates the **ingestion, cleaning, transformation, and deployment** of city service data to support public dashboards and an **LLM-powered chatbot** that helps citizens get real-time updates and insights.
 
-🚀 Tech Stack
+---
 
-Data Source: Boston 311 API
-Pipeline Orchestration: Apache Airflow (Google Cloud Composer)
-Data Warehouse: Google BigQuery
-Storage: Google Cloud Storage (GCS)
-Machine Learning: Vertex AI / PyTorch
-Backend: FastAPI (deployed on Cloud Run)
-Frontend: Next.js + Mapbox
-Infrastructure: Terraform (GCP)
+## 🧰 Tech Stack
+
+| Layer | Technology Used |
+|-------|-----------------|
+| **Data Source** | Boston 311 API |
+| **Pipeline Orchestration** | Apache Airflow (Google Cloud Composer) |
+| **Data Warehouse** | Google BigQuery |
+| **Storage** | Google Cloud Storage (GCS) |
+| **Machine Learning** | Vertex AI / PyTorch |
+| **Backend** | FastAPI (deployed on Cloud Run) |
+| **Frontend** | Next.js + Mapbox |
+| **Infrastructure** | Terraform (GCP) |
+
+---
+
+
+
 ## 🧩 System Architecture
 
 ```mermaid
