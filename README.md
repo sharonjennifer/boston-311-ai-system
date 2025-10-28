@@ -50,7 +50,7 @@ flowchart TD
     style D4 fill:#1f618d,stroke:#555,stroke-width:1px,color:#fff
 ```
 
-
+Figure: System architecture of the Boston 311 AI System — data is ingested and orchestrated via Airflow (Composer), processed through BigQuery, served by FastAPI, and visualized in a Next.js + Mapbox dashboard.
 
 
 ⚡ Installation
