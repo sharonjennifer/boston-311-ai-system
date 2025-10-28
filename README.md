@@ -63,10 +63,10 @@ flowchart TD
   <em><strong>Figure:</strong> System architecture of the <strong>Boston 311 AI System</strong> — data is ingested and orchestrated via Airflow (Composer), processed through BigQuery, served by FastAPI, and visualized in a Next.js + Mapbox dashboard.</em>
 </p>
 
+⚙️ Installation & Setup
+⚡ Installation Prerequisites
 
-
-⚡ Installation
-Prerequisites
+Make sure you have the following installed:
 
 Python 3.9+
 
@@ -77,7 +77,6 @@ Docker
 Terraform 1.5+
 
 Google Cloud SDK (gcloud)
-
 Setup Instructions
 # 1️⃣ Clone the repository
 git clone https://github.com/sharonjennifer/boston-311-ai-system.git
