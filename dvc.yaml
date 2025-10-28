@@ -1,0 +1,6 @@
+stages:
+  run_tests:
+    cmd: pytest data_pipelines/tests/ -v --cov=data_pipelines
+    deps:
+      - data_pipelines/tests/
+      - data_pipelines/fetch_data.py
