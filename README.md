@@ -14,13 +14,14 @@ Machine Learning: Vertex AI / PyTorch
 Backend: FastAPI (deployed on Cloud Run)
 Frontend: Next.js + Mapbox
 Infrastructure: Terraform (GCP)
-
 ## 🧩 System Architecture
 
 ```mermaid
 flowchart TD
-    subgraph Composer["☁️ Google Cloud Composer / Airflow"]
-        D1["boston311_daily – Incremental Ingestion "] --> GCS["🗂️ Google Cloud Storage"]
+    T0["☁️ Google Cloud Composer / Airflow"]:::title
+
+    subgraph Composer[" "]
+        D1["boston311_daily – Incremental Ingestion (Last 28 days)"] --> GCS["🗂️ Google Cloud Storage"]
         D2["boston311_weekly – Full Refresh + Deduplication"] --> GCS
         D3["boston311_build_filtered_tables – Chatbot & Dashboard Views"] --> BQ2["📊 BigQuery Production Tables"]
         D4["airflow_monitoring – Liveness Probe"]
@@ -31,10 +32,14 @@ flowchart TD
     BQ2 --> API["⚙️ FastAPI – Chatbot & APIs"]
     API --> WEB["🗺️ Next.js + Mapbox – Visualization"]
 
+    %% Connect Title to Subgraph
+    T0 --> D1
+
     %% Styling
-    style Composer fill:#fafafa,stroke:#333,stroke-width:1px,color:#000
-    style GCS fill:#ffe599,stroke:#333,stroke-width:1px,color:#000
-    style BQ1 fill:#b7d7f5,stroke:#333,stroke-width:1px,color:#000
+    classDef title fill:#ffffff,stroke:none,font-weight:bold,font-size:18px,color:#000,text-align:center;
+    style Composer fill:#fefefe,stroke:#333,stroke-width:1px
+    style GCS fill:#f7dc6f,stroke:#333,stroke-width:1px,color:#000
+    style BQ1 fill:#aed6f1,stroke:#333,stroke-width:1px,color:#000
     style BQ2 fill:#5499c7,stroke:#222,stroke-width:1px,color:#fff
     style API fill:#82e0aa,stroke:#222,stroke-width:1px,color:#000
     style WEB fill:#f5b7b1,stroke:#222,stroke-width:1px,color:#000
@@ -43,6 +48,7 @@ flowchart TD
     style D3 fill:#34495e,stroke:#555,stroke-width:1px,color:#fff
     style D4 fill:#1f618d,stroke:#555,stroke-width:1px,color:#fff
 ```
+
 
 
 
