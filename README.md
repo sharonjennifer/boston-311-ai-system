@@ -63,23 +63,20 @@ flowchart TD
   <em><strong>Figure:</strong> System architecture of the <strong>Boston 311 AI System</strong> — data is ingested and orchestrated via Airflow (Composer), processed through BigQuery, served by FastAPI, and visualized in a Next.js + Mapbox dashboard.</em>
 </p>
 
-⚙️ Installation & Setup
-⚡ Installation Prerequisites
+# ⚙️ Installation & Setup
+
+## ⚡ Installation Prerequisites
 
 Before setting up the project, ensure the following tools are installed on your system:
 
-Python 3.9+ — Required for running backend pipelines and data scripts.
+- **Python 3.9+** — Required for running backend pipelines and data scripts.
+- **Node.js 18+** — Needed for the frontend (Next.js) application.
+- **Docker** — Used for containerization and environment consistency.
+- **Terraform 1.5+** — Handles infrastructure provisioning on Google Cloud.
+- **Google Cloud SDK (gcloud)** — Required for authentication and resource management on GCP.
 
-Node.js 18+ — Needed for the frontend (Next.js) application.
-
-Docker — Used for containerization and environment consistency.
-
-Terraform 1.5+ — Handles infrastructure provisioning on Google Cloud.
-
-Google Cloud SDK (gcloud) — Required for authentication and resource management on GCP.
-
-
-Setup Instructions
+## Setup Instructions
+```bash
 # 1️⃣ Clone the repository
 git clone https://github.com/sharonjennifer/boston-311-ai-system.git
 cd boston-311-ai-system
@@ -96,102 +93,86 @@ pip install -r requirements.txt
 # 4️⃣ Set up environment variables
 cp .env.example .env
 # Edit .env with your GCP credentials and project-specific variables
+```
 
-Authenticate with Google Cloud
+### Authenticate with Google Cloud
+```bash
 gcloud auth application-default login
 gcloud config set project boston311-mlops
+```
 
+---
 
-⚙️ Data Pipeline Orchestration (Airflow / Composer)
+## ⚙️ Data Pipeline Orchestration (Airflow / Composer)
 
-All workflows are managed by Google Cloud Composer, which runs Airflow to automate ETL, monitor runs, and handle failure recovery.
+All workflows are managed by **Google Cloud Composer**, which runs Airflow to automate ETL, monitor runs, and handle failure recovery.
 
-The DAGs are stored in the Composer environment’s DAGs folder (gs://boston311-composer/dags/) and execute according to their defined schedules.
+The DAGs are stored in the Composer environment's DAGs folder (`gs://boston311-composer/dags/`) and execute according to their defined schedules.
 
-🗓️ Active Pipelines
-Pipeline	Description	Schedule	Core Logic
-boston311_daily	Incrementally ingests new and updated 311 service requests for the past 28 days.	@daily	Fetches recent records, stores in GCS, loads into BigQuery staging, and merges into production.
-boston311_weekly	Performs a full rebuild and deduplication of all service request data.	0 4 * * 1 (Mondays)	Uses ROW_NUMBER() and CREATE OR REPLACE to ensure clean full refresh.
-boston311_build_filtered_tables	Rebuilds chatbot-specific and dashboard-friendly BigQuery tables.	0 1 * * * (Daily at 1 AM)	Executes transformation SQL to create chatbot and dashboard tables for LLM and analytics.
-airflow_monitoring	Liveness DAG to ensure Composer is healthy and operational.	*/10 * * * *	Runs a Bash echo probe every 10 minutes for monitoring.
-🧠 How Each Pipeline Works
-🟢 boston311_daily
+### 🗓️ Active Pipelines
 
-Saves data as newline-delimited JSON in GCS.
+| Pipeline | Description | Schedule | Core Logic |
+|----------|-------------|----------|------------|
+| `boston311_daily` | Incrementally ingests new and updated 311 service requests for the past 28 days. | `@daily` | Fetches recent records, stores in GCS, loads into BigQuery staging, and merges into production. |
+| `boston311_weekly` | Performs a full rebuild and deduplication of all service request data. | `0 4 * * 1` (Mondays) | Uses `ROW_NUMBER()` and `CREATE OR REPLACE` to ensure clean full refresh. |
+| `boston311_build_filtered_tables` | Rebuilds chatbot-specific and dashboard-friendly BigQuery tables. | `0 1 * * *` (Daily at 1 AM) | Executes transformation SQL to create chatbot and dashboard tables for LLM and analytics. |
+| `airflow_monitoring` | Liveness DAG to ensure Composer is healthy and operational. | `*/10 * * * *` | Runs a Bash echo probe every 10 minutes for monitoring. |
 
-Loads into a staging BigQuery table.
+### 🧠 How Each Pipeline Works
 
-Merges into the production table using MERGE SQL.
+#### 🟢 boston311_daily
+- Saves data as newline-delimited JSON in GCS.
+- Loads into a staging BigQuery table.
+- Merges into the production table using `MERGE` SQL.
+- Includes retry, error logging, and empty-file skip logic.
 
-Includes retry, error logging, and empty-file skip logic.
+#### 🔵 boston311_weekly
+- Fetches the entire dataset weekly for consistency.
+- Deduplicates via `ROW_NUMBER()` partitioning.
+- Fully overwrites the target table.
+- Used for long-term corrections or schema alignment.
 
-🔵 boston311_weekly
-
-Fetches the entire dataset weekly for consistency.
-
-Deduplicates via ROW_NUMBER() partitioning.
-
-Fully overwrites the target table.
-
-Used for long-term corrections or schema alignment.
-
-🟣 boston311_build_filtered_tables
-
+#### 🟣 boston311_build_filtered_tables
 Runs daily to rebuild lightweight analytical tables for:
+- **Chatbot**: Contains filtered fields (`case_enquiry_id`, `type`, `reason`, etc.) for faster text queries.
+- **Dashboard**: Aggregates records by neighborhood, department, and type with `case_count` and `on_time_count`.
 
-Chatbot: Contains filtered fields (case_enquiry_id, type, reason, etc.) for faster text queries.
-
-Dashboard: Aggregates records by neighborhood, department, and type with case_count and on_time_count.
-
-Output tables:
-
-boston311.chatbot
-
-boston311.dashboard
+**Output tables:**
+- `boston311.chatbot`
+- `boston311.dashboard`
 
 Optimized for real-time queries and model serving.
 
-🟠 airflow_monitoring
+#### 🟠 airflow_monitoring
+- Ensures the Composer scheduler remains active.
+- Uses a simple echo test command.
+- Runs every 10 minutes and retries once on failure.
+- Sends alert notifications to Composer monitoring UI.
 
-Ensures the Composer scheduler remains active.
+### 🔍 Tracking, Logging & Error Handling
 
-Uses a simple echo test command.
+- **Structured logging**: Each DAG logs pages, record counts, and ranges.
+- **Centralized monitoring**: Logs are pushed to Google Cloud Logging.
+- **Error alerts**: Composer sends email/SMS on task failure.
+- **Short-circuit logic**: Skips empty tasks automatically.
+- **Data auditability**: All JSONL files archived in `gs://boston311-bucket/boston311/raw/YYYY-MM-DD/`.
 
-Runs every 10 minutes and retries once on failure.
+### ⚙️ Pipeline Performance Optimization
 
-Sends alert notifications to Composer monitoring UI.
+- Incremental daily ingestion keeps API usage efficient.
+- Weekly rebuilds ensure long-term consistency.
+- Filtered tables minimize query latency for dashboards and LLM inference.
+- Airflow Gantt charts used to monitor performance bottlenecks.
 
-🔍 Tracking, Logging & Error Handling
+**Average runtimes:**
+- Daily DAG ≈ 5 minutes
+- Weekly DAG ≈ 15 minutes
+- Filtered tables DAG ≈ 2 minutes
 
-Structured logging: Each DAG logs pages, record counts, and ranges.
+---
 
-Centralized monitoring: Logs are pushed to Google Cloud Logging.
-
-Error alerts: Composer sends email/SMS on task failure.
-
-Short-circuit logic: Skips empty tasks automatically.
-
-Data auditability: All JSONL files archived in gs://boston311-bucket/boston311/raw/YYYY-MM-DD/.
-
-⚙️ Pipeline Performance Optimization
-
-Incremental daily ingestion keeps API usage efficient.
-
-Weekly rebuilds ensure long-term consistency.
-
-Filtered tables minimize query latency for dashboards and LLM inference.
-
-Airflow Gantt charts used to monitor performance bottlenecks.
-
-Average runtimes:
-
-Daily DAG ≈ 5 minutes
-
-Weekly DAG ≈ 15 minutes
-
-Filtered tables DAG ≈ 2 minutes
-
-🧱 Repository Structure
+## 🧱 Repository Structure
+```
 boston-311-ai-system/
 ├── dags/
 │   ├── boston311_daily.py
@@ -203,30 +184,46 @@ boston-311-ai-system/
 ├── webapp/              # Next.js + Mapbox frontend
 ├── infra/               # Terraform scripts
 └── docs/                # Documentation
+```
 
-☁️ Deployment
-Deploy Infrastructure
+---
+
+## ☁️ Deployment
+
+### Deploy Infrastructure
+```bash
 cd infra/terraform
 terraform init
 terraform apply
+```
 
-Deploy DAGs
+### Deploy DAGs
 
 Upload to Composer bucket:
-
+```bash
 gsutil cp dags/*.py gs://boston311-composer/dags/
+```
 
-Deploy API
+### Deploy API
+```bash
 gcloud builds submit --tag gcr.io/boston311-mlops/api-service
 gcloud run deploy api-service --image gcr.io/boston311-mlops/api-service
+```
 
-📈 Monitoring
-Tool	Purpose
-Airflow UI – DAG Graph	Visualize pipeline dependencies
-Airflow Gantt View	Analyze execution times
-Cloud Logging	Centralized task logs
-Cloud Monitoring	Alerting for failures
-BigQuery Console	Verify data refreshes
-📄 License
+---
 
-MIT License — see LICENSE
+## 📈 Monitoring
+
+| Tool | Purpose |
+|------|---------|
+| **Airflow UI – DAG Graph** | Visualize pipeline dependencies |
+| **Airflow Gantt View** | Analyze execution times |
+| **Cloud Logging** | Centralized task logs |
+| **Cloud Monitoring** | Alerting for failures |
+| **BigQuery Console** | Verify data refreshes |
+
+---
+
+## 📄 License
+
+MIT License — see [LICENSE](LICENSE)
