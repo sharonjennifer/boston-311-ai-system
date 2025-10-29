@@ -143,6 +143,15 @@ Runs daily to rebuild lightweight analytical tables for:
 
 Optimized for real-time queries and model serving.
 
+#### 🟤 boston311_fairness_weekly
+Introduces automated bias detection to ensure equity in city services.
+- Analyzes 30-day on-time performance per neighborhood, department, and source.
+- Flags slices >10% below median in `bos311_bias_alerts_weekly`.
+- Seeds `bos311_bias_actions_taken` for mitigation tracking.
+- Sends fairness email alerts via Composer.
+
+This ensures continuous monitoring of data fairness while maintaining transparency and accountability.
+
 #### 🟠 airflow_monitoring
 - Ensures the Composer scheduler remains active.
 - Uses a simple echo test command.
