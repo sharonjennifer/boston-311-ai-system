@@ -10,7 +10,7 @@ from pathlib import Path
 # Add scripts directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "scripts"))
 
-from dag_utils import (
+from data_pipelines.scripts.dag_utils import (
     get_recent_iso,
     file_exists,
     generate_merge_sql,
@@ -20,10 +20,7 @@ from dag_utils import (
 
 
 class TestGetRecentIso:
-    """Tests for get_recent_iso function"""
-    
     def test_returns_iso_format(self):
-        """Test function returns ISO formatted date string"""
         result = get_recent_iso(days=28)
         
         assert isinstance(result, str)
@@ -31,7 +28,6 @@ class TestGetRecentIso:
         assert len(result) == 20
     
     def test_different_day_ranges(self):
-        """Test with different day ranges"""
         result_7 = get_recent_iso(days=7)
         result_28 = get_recent_iso(days=28)
         result_1 = get_recent_iso(days=1)
@@ -41,26 +37,19 @@ class TestGetRecentIso:
 
 
 class TestFileExists:
-    """Tests for file_exists function"""
-    
     def test_returns_true_when_exists(self):
-        """Test returns True when file exists"""
         with patch('os.path.exists', return_value=True):
             result = file_exists("/tmp/test.txt")
             assert result == True
     
     def test_returns_false_when_missing(self):
-        """Test returns False when file missing"""
         with patch('os.path.exists', return_value=False):
             result = file_exists("/tmp/nonexistent.txt")
             assert result == False
 
 
 class TestGenerateMergeSql:
-    """Tests for generate_merge_sql function"""
-    
     def test_generates_valid_sql(self):
-        """Test SQL generation"""
         columns = ['_id', 'case_enquiry_id', 'case_status']
         sql = generate_merge_sql("staging", "target", "project-id", "dataset", columns)
         
@@ -70,7 +59,6 @@ class TestGenerateMergeSql:
         assert "target" in sql
     
     def test_includes_deduplication(self):
-        """Test SQL includes ROW_NUMBER deduplication"""
         columns = ['_id', 'case_enquiry_id']
         sql = generate_merge_sql("stg", "tgt", "proj", "ds", columns)
         
@@ -78,14 +66,12 @@ class TestGenerateMergeSql:
         assert "PARTITION BY case_enquiry_id" in sql
     
     def test_filters_nulls(self):
-        """Test SQL filters null case_enquiry_id"""
         columns = ['_id', 'case_enquiry_id']
         sql = generate_merge_sql("stg", "tgt", "proj", "ds", columns)
         
         assert "case_enquiry_id IS NOT NULL" in sql
     
     def test_has_update_and_insert(self):
-        """Test SQL has MATCHED and NOT MATCHED clauses"""
         columns = ['_id', 'case_enquiry_id', 'status']
         sql = generate_merge_sql("stg", "tgt", "proj", "ds", columns)
         
@@ -96,10 +82,7 @@ class TestGenerateMergeSql:
 
 
 class TestGenerateOverwriteSql:
-    """Tests for generate_overwrite_sql function"""
-    
     def test_generates_valid_sql(self):
-        """Test overwrite SQL generation"""
         columns = ['_id', 'case_enquiry_id']
         sql = generate_overwrite_sql("staging", "target", "project", "dataset", columns)
         
@@ -108,7 +91,6 @@ class TestGenerateOverwriteSql:
         assert "INSERT INTO" in sql
     
     def test_includes_deduplication(self):
-        """Test includes deduplication logic"""
         columns = ['_id', 'case_enquiry_id']
         sql = generate_overwrite_sql("stg", "tgt", "proj", "ds", columns)
         
@@ -116,10 +98,7 @@ class TestGenerateOverwriteSql:
 
 
 class TestWriteRecordsToJsonl:
-    """Tests for write_records_to_jsonl function"""
-    
     def test_writes_records(self):
-        """Test records are written to file"""
         records = [
             {"_id": 1, "case_enquiry_id": 101},
             {"_id": 2, "case_enquiry_id": 102}
@@ -133,7 +112,6 @@ class TestWriteRecordsToJsonl:
                 assert m().write.call_count == 2
     
     def test_adds_ingestion_timestamp(self):
-        """Test _ingested_at field is added"""
         records = [{"_id": 1}]
         written_data = []
         
@@ -149,7 +127,6 @@ class TestWriteRecordsToJsonl:
                 assert '_ingested_at' in written_json
     
     def test_creates_directory(self):
-        """Test output directory is created"""
         records = [{"_id": 1}]
         
         with patch('os.makedirs') as mock_makedirs:
@@ -159,7 +136,6 @@ class TestWriteRecordsToJsonl:
                 mock_makedirs.assert_called_once()
     
     def test_handles_empty_records(self):
-        """Test handles empty record list"""
         records = []
         
         with patch('builtins.open', mock_open()) as m:

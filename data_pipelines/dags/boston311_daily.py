@@ -15,7 +15,7 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobO
 from google.cloud import bigquery
 from google.api_core.exceptions import NotFound
 
-import fetch_data
+import data_pipelines.scripts.fetch_data as fetch_data
 
 from email_alerts import on_dag_success, on_dag_failure
 

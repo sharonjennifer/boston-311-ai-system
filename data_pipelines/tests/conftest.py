@@ -1,4 +1,3 @@
-"""Pytest configuration and fixtures"""
 import pytest
 import sys
 from pathlib import Path
@@ -10,7 +9,6 @@ sys.path.insert(0, str(project_root))
 
 @pytest.fixture
 def sample_api_response():
-    """Sample successful API response"""
     return {
         "success": True,
         "result": {
@@ -44,7 +42,6 @@ def sample_api_response():
 
 @pytest.fixture
 def sample_records():
-    """Sample records for testing"""
     return [
         {"_id": 1, "case_enquiry_id": 101, "case_status": "Open", "type": "Pothole"},
         {"_id": 2, "case_enquiry_id": 102, "case_status": "Closed", "type": "Graffiti"},
@@ -54,7 +51,6 @@ def sample_records():
 
 @pytest.fixture
 def sample_records_with_nulls():
-    """Sample records with missing values"""
     return [
         {"_id": 1, "case_enquiry_id": None, "case_status": "Open"},
         {"_id": 2, "case_enquiry_id": 102, "case_status": None},

@@ -33,18 +33,12 @@ default_args = {
 }
 
 def create_fairness_tables_sql():
-    """
-    Create the monitoring / audit tables if they don't exist.
-    1. bos311_slice_metrics_weekly: snapshot of service quality per slice (neighborhood/department/source)
-    2. bos311_bias_alerts_weekly: slices that are significantly below median
-    3. bos311_bias_actions_taken: mitigation log / accountability surface
-    """
     return f"""
     CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.{BQ_DATASET}.{SLICE_METRICS_TABLE}`
     (
       snapshot_date DATE,
-      slice_type STRING,       -- 'neighborhood', 'department', 'source'
-      slice_group STRING,      -- e.g. 'Charlestown'
+      slice_type STRING,
+      slice_group STRING,
       total_cases INT64,
       ontime_rate FLOAT64,
       closed_rate FLOAT64
@@ -62,21 +56,21 @@ def create_fairness_tables_sql():
       closed_rate FLOAT64,
       median_ontime_rate FLOAT64,
       gap_below_median FLOAT64,
-      status STRING            -- 'needs_attention' or 'ok'
+      status STRING 
     )
     PARTITION BY snapshot_date
     ;
 
     CREATE TABLE IF NOT EXISTS `{GCP_PROJECT_ID}.{BQ_DATASET}.{BIAS_ACTIONS_TABLE}`
     (
-      action_timestamp TIMESTAMP,   -- when this row was created or updated
-      snapshot_date DATE,           -- which fairness snapshot this refers to
-      slice_type STRING,            -- 'neighborhood', 'department', 'source'
-      slice_group STRING,           -- e.g. 'Charlestown'
-      issue_summary STRING,         -- description of disparity
-      action_taken STRING,          -- what ops decided to do to mitigate
-      expected_tradeoff STRING,     -- any trade-off accepted (e.g. slowing other areas)
-      owner STRING                  -- accountable person/team
+      action_timestamp TIMESTAMP, 
+      snapshot_date DATE,
+      slice_type STRING,
+      slice_group STRING,
+      issue_summary STRING,
+      action_taken STRING,
+      expected_tradeoff STRING,
+      owner STRING
     )
     PARTITION BY DATE(action_timestamp)
     ;
@@ -84,14 +78,7 @@ def create_fairness_tables_sql():
 
 
 def build_slice_metrics_union_query():
-    """
-    Generate a single BigQuery statement that:
-    - builds slice stats for neighborhood, department, source
-    - unions them
-    - inserts into bos311_slice_metrics_weekly
-    """
-
-    return f"""
+  return f"""
     INSERT INTO `{GCP_PROJECT_ID}.{BQ_DATASET}.{SLICE_METRICS_TABLE}`
     (snapshot_date,
      slice_type,
@@ -192,14 +179,7 @@ def build_slice_metrics_union_query():
     """
 
 def build_bias_alerts_query():
-    """
-    For today's snapshot in bos311_slice_metrics_weekly:
-    - compute median ontime_rate per slice_type
-    - flag any slice_group whose ontime_rate is more than FAIRNESS_GAP_PCT below median
-    - insert those rows into bos311_bias_alerts_weekly
-    """
-
-    return f"""
+   return f"""
     INSERT INTO `{GCP_PROJECT_ID}.{BQ_DATASET}.{BIAS_ALERTS_TABLE}`
     (snapshot_date,
      slice_type,
@@ -264,14 +244,6 @@ def build_bias_alerts_query():
     """
 
 def build_action_seed_query():
-    """
-    Create/seed mitigation records in bos311_bias_actions_taken
-    for every underserved slice (status='needs_attention') from today's run.
-
-    We only insert if there isn't already an action row for that same
-    snapshot_date + slice_type + slice_group. This gives you a to-do
-    item to fill in 'action_taken', 'expected_tradeoff', and 'owner'.
-    """
     return f"""
     INSERT INTO `{GCP_PROJECT_ID}.{BQ_DATASET}.{BIAS_ACTIONS_TABLE}`
     (action_timestamp,
@@ -309,10 +281,6 @@ def build_action_seed_query():
     """
 
 def _bias_alert_check(**context):
-    """
-    Return True if any slice was flagged 'needs_attention' today.
-    We will only send an email if this is True.
-    """
     client = bigquery.Client(project=GCP_PROJECT_ID, location=BQ_LOCATION)
     sql = f"""
     SELECT COUNT(*) AS cnt
@@ -327,10 +295,6 @@ def _bias_alert_check(**context):
 
 
 def _send_bias_email(**context):
-    """
-    Send a fairness alert email using the same SMTP and recipient config
-    your other DAGs already use (email_alerts._send_email).
-    """
     subject = "311 Fairness Alert (Weekly Bias Monitor)"
 
     html = f"""

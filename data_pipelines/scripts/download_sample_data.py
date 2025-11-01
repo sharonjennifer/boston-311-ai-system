@@ -5,11 +5,6 @@ import os
 import sys
 
 def download_sample_data(limit=5000):
-    """Download recent records from BigQuery
-    
-    Args:
-        limit: Number of records to download (default: 5000)
-    """
     try:
         print(f"Authenticating with BigQuery...")
         client = bigquery.Client(project="boston311-mlops")

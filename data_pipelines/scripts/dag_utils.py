@@ -1,4 +1,3 @@
-"""Utility functions used by DAGs - extracted for testing"""
 import os
 import json
 import logging
@@ -6,7 +5,6 @@ from datetime import datetime, timedelta, timezone
 
 logger = logging.getLogger(__name__)
 
-# Import fetch_data from same directory
 try:
     import fetch_data
 except ImportError:
@@ -14,27 +12,11 @@ except ImportError:
 
 
 def get_recent_iso(days=28):
-    """Get ISO timestamp for N days ago
-    
-    Args:
-        days: Number of days to look back
-        
-    Returns:
-        ISO formatted timestamp string
-    """
     d = (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
     return f"{d}T00:00:00Z"
 
 
 def file_exists(path):
-    """Check if file exists at given path
-    
-    Args:
-        path: File path to check
-        
-    Returns:
-        True if file exists, False otherwise
-    """
     exists = os.path.exists(path)
     if not exists:
         logger.info(f"File not found: {path}")
@@ -42,18 +24,6 @@ def file_exists(path):
 
 
 def generate_merge_sql(staging_table, target_table, project_id, dataset, columns):
-    """Generate MERGE SQL for deduplication
-    
-    Args:
-        staging_table: Staging table name
-        target_table: Target table name
-        project_id: GCP project ID
-        dataset: BigQuery dataset name
-        columns: List of column names
-        
-    Returns:
-        SQL string for MERGE operation
-    """
     sets = ",\n    ".join([f"{c} = S.{c}" for c in columns if c not in ("case_enquiry_id", "_id")])
     cols = ", ".join(columns)
     scols = ", ".join([f"S.{c}" for c in columns])
@@ -78,18 +48,6 @@ def generate_merge_sql(staging_table, target_table, project_id, dataset, columns
 
 
 def generate_overwrite_sql(staging_table, target_table, project_id, dataset, columns):
-    """Generate SQL for full table overwrite
-    
-    Args:
-        staging_table: Staging table name
-        target_table: Target table name
-        project_id: GCP project ID
-        dataset: BigQuery dataset name
-        columns: List of column names
-        
-    Returns:
-        SQL string for overwrite operation
-    """
     cols = ", ".join(columns)
     
     return f"""
@@ -108,16 +66,6 @@ def generate_overwrite_sql(staging_table, target_table, project_id, dataset, col
 
 
 def write_records_to_jsonl(records, output_path, ingestion_timestamp=None):
-    """Write records to JSONL file
-    
-    Args:
-        records: List of record dictionaries
-        output_path: Path to output file
-        ingestion_timestamp: ISO timestamp to add (default: now)
-        
-    Returns:
-        Number of records written
-    """
     if ingestion_timestamp is None:
         ingestion_timestamp = datetime.now(timezone.utc).replace(microsecond=0).isoformat().replace("+00:00", "Z")
     
