@@ -117,6 +117,7 @@ The DAGs are stored in the Composer environment's DAGs folder (`gs://boston311-c
 | `boston311_weekly` | Performs a full rebuild and deduplication of all service request data. | `0 4 * * 1` (Mondays) | Uses `ROW_NUMBER()` and `CREATE OR REPLACE` to ensure clean full refresh. |
 | `boston311_build_filtered_tables` | Rebuilds chatbot-specific and dashboard-friendly BigQuery tables. | `0 1 * * *` (Daily at 1 AM) | Executes transformation SQL to create chatbot and dashboard tables for LLM and analytics. |
 | `airflow_monitoring` | Liveness DAG to ensure Composer is healthy and operational. | `*/10 * * * *` | Runs a Bash echo probe every 10 minutes for monitoring. |
+| `boston311_fairness_weekly` | Automated bias detection to ensure equity in city services. | `0 5 * * 1 (Mondays)` | Analyzes 30-day on time performance per neighborhood/department/source and flags slices >10% below median into bos311_bias_alerts_weekly. |
 
 ### 🧠 How Each Pipeline Works
 
@@ -188,6 +189,7 @@ boston-311-ai-system/
 │   ├── boston311_weekly.py
 │   ├── boston311_build_filtered_tables.py
 │   └── airflow_monitoring.py
+│   └── boston311_fairness_weekly.py
 ├── models/              # ML and LLM logic
 ├── services/            # FastAPI backend
 ├── webapp/              # Next.js + Mapbox frontend
