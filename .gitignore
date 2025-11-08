@@ -89,6 +89,7 @@ docs/_build/
 .pyre/
 .dmypy.json
 .mypy_cache/
+.DS_Store
 
 # ==============================
 # MAC / OS / WINDOWS
