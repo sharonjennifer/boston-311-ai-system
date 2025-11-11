@@ -17,7 +17,7 @@ from google.api_core.exceptions import NotFound
 
 import data_pipelines.scripts.fetch_data as fetch_data
 
-from email_alerts import on_dag_success, on_dag_failure
+from data_pipelines.scripts.email_alerts import on_dag_success, on_dag_failure
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)

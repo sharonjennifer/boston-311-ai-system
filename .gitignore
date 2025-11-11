@@ -101,7 +101,7 @@ desktop.ini
 # ==============================
 # DVC / DATA PIPELINE OUTPUTS
 # ==============================
-data/
+# data/
 data_pipelines/data/raw/
 data_pipelines/data/processed/
 tmp/

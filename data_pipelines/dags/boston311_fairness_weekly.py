@@ -9,7 +9,7 @@ from airflow.providers.google.cloud.operators.bigquery import BigQueryInsertJobO
 
 from google.cloud import bigquery
 
-from email_alerts import on_dag_success, on_dag_failure, _send_email
+from data_pipelines.scripts.email_alerts import on_dag_success, on_dag_failure, _send_email
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
