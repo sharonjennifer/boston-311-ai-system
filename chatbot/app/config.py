@@ -1,4 +1,19 @@
+from dotenv import load_dotenv, find_dotenv
 import os
+from pathlib import Path
+
+_ENV_PATH = find_dotenv()
+load_dotenv(_ENV_PATH)
+
+_gac = os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+if _gac and not os.path.isabs(_gac):
+    env_dir = Path(_ENV_PATH).parent if _ENV_PATH else Path.cwd()
+    abs_gac = str((env_dir / _gac).resolve())
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = abs_gac
+
+LLM_API_BASE = os.getenv("LLM_API_BASE", "http://localhost:11434/v1")
+LLM_API_KEY  = os.getenv("LLM_API_KEY", "not-used")
+LLM_MODEL    = os.getenv("LLM_MODEL", "llama3.1")
 
 PROJECT_ID       = os.getenv("B311_PROJECT", "boston311-mlops")
 RAW_DATASET      = os.getenv("B311_RAW_DATASET", "boston311")
@@ -27,3 +42,5 @@ DEFAULTS = {
     "limit": 50,
     "tz": "America/New_York",
 }
+
+GOOGLE_APPLICATION_CREDENTIALS = os.getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
