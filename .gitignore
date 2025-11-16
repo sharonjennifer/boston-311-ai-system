@@ -65,6 +65,8 @@ venv.bak/
 .pdm-build/
 .pixi/
 __pypackages__/
+*.env
+
 
 # ==============================
 # DJANGO / FLASK / SCRAPY / WEB
