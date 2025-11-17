@@ -132,7 +132,6 @@ airflow.db
 # GCP / BIGQUERY / SECRETS
 # ==============================
 # Never commit service account keys or credential files
-*.json
 *.yaml
 *.yml
 secrets/
