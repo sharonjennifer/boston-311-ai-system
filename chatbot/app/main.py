@@ -1,31 +1,34 @@
 # app/main.py
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from pathlib import Path
+
 import logging, os
 
-from app.router_gemini import choose_and_fill
-from app.sql_templates import TEMPLATES
-from app.bq import dry_run, run
-
+from pathlib import Path
+from pydantic import BaseModel
+from fastapi import FastAPI, HTTPException
 from dotenv import load_dotenv, find_dotenv
+
+from app.bq import dry_run, run
+from app.sql_templates import TEMPLATES
+from app.router_gemini import choose_and_fill
+
+
+
 load_dotenv(find_dotenv())
 
-# ---- logging config (console) ----
 logging.basicConfig(
     level=os.getenv("B311_LOG_LEVEL", "INFO"),
     format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
 )
-# quiet noisy deps a bit
 logging.getLogger("google").setLevel(logging.WARNING)
 logging.getLogger("grpc").setLevel(logging.WARNING)
 logging.getLogger("absl").setLevel(logging.WARNING)
-
 logger = logging.getLogger("b311.main")
 
 CORPUS_DIR = Path(__file__).resolve().parents[1] / "corpus"
-_schema_snippet = (CORPUS_DIR / "schema_cards.md").read_text() if (CORPUS_DIR / "schema_cards.md").exists() else ""
-_rules_snippet  = (CORPUS_DIR / "rules.md").read_text()        if (CORPUS_DIR / "rules.md").exists() else ""
+schema_snippet = (CORPUS_DIR / "schema_cards.md").read_text() if (CORPUS_DIR / "schema_cards.md").exists() else ""
+rules_snippet  = (CORPUS_DIR / "rules.md").read_text() if (CORPUS_DIR / "rules.md").exists() else ""
+
+
 
 app = FastAPI(title="Boston 311 Chatbot")
 
@@ -36,7 +39,7 @@ class Ask(BaseModel):
 def query(payload: Ask):
     logger.info("POST /query question=%r", payload.question)
 
-    choice = choose_and_fill(payload.question, _schema_snippet, _rules_snippet)
+    choice = choose_and_fill(payload.question, schema_snippet, rules_snippet)
     if choice.get("needs_clarification"):
         logger.info("Needs clarification: %s", choice.get("clarify_question"))
         return {"needs_clarification": True, "clarify_question": choice.get("clarify_question","")}
@@ -52,7 +55,7 @@ def query(payload: Ask):
     logger.info("Executing template=%s params=%s", tid, params)
     logger.debug("SQL:\n%s", sql)
 
-    # DRY RUN
+    # DRY-RUN
     try:
         dry = dry_run(sql, params)
         if dry["total_bytes_processed"] > 5 * 10**9:

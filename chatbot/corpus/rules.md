@@ -8,7 +8,7 @@ Defaults: counts/search → 30 days; trends → 12 weeks
 Geo rules
 - Neighborhood must match boston311_service.ref_neighborhoods.neighborhood_name (UPPER TRIM).
 - Use polygons from ref_neighborhoods for GEO_POLYGON.
-- For RAW points, convert WKB hex to GEOGRAPHY via ST_GEOGFROMWKB(FROM_HEX(geom_4326)).
+- For RAW points, convert WKB hex to GEOGRAPHY using ST_GEOGFROMWKB(FROM_HEX(geom_4326)).
 
 Taxonomy rules
 - Normalize department/reason/type via UPPER(TRIM(...)).
