@@ -43,6 +43,19 @@ vertexai.init(project=VERTEX_PROJECT, location=VERTEX_LOCATION)
 model = GenerativeModel(MODEL_ID, system_instruction=[PROMPT_SYSTEM])
 logger.info("Vertex model ready")
 
+TEMPLATE_REGISTRY = {}
+try:
+    if TEMPLATES_JSONL.exists():
+        with open(TEMPLATES_JSONL, "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip():
+                    obj = json.loads(line)
+                    TEMPLATE_REGISTRY[obj["id"]] = obj
+    else:
+        logger.warning("templates.jsonl not found at %s", TEMPLATES_JSONL)
+except Exception as e:
+    logger.error("Failed to load template registry: %s", e)
+
 
 
 def log_llm_raw(label:str, text: str):
@@ -61,7 +74,20 @@ def log_llm_raw(label:str, text: str):
 
 
 def pretty_candidates(cands: List[Tuple[str, float]]):
-    return "\n".join([f"- {tid} (score≈{score:.2f})" for tid, score in cands])
+    lines = []
+    for tid, score in cands:
+        meta = TEMPLATE_REGISTRY.get(tid, {})
+        req = meta.get("required_slots", [])
+        opt = meta.get("optional_slots", [])
+        
+        line = (
+            f"- ID: {tid} (Confidence: {score:.2f})\n"
+            f"  Required Params: {json.dumps(req)}\n"
+            f"  Optional Params: {json.dumps(opt)}"
+        )
+        lines.append(line)
+        
+    return "\n\n".join(lines)
 
 def extract_first_json_object(s: str):
     start = s.find("{")
@@ -147,8 +173,8 @@ def call_llm_router(question: str, candidates: List[Tuple[str, float]], schema_s
                     {pretty_candidates(candidates)}
 
                     Return JSON only. Do not change the parameter names. No code blocks, no backticks, no extra words."""
-
-    txt = call_vertex(user_prompt)
+    
+    txt = call_vertex(user_prompt + "\n\nRespond with a single minified JSON object only.")
     try:
         logger.infor("Attempting to parse LLM output as JSON")
         data = force_json(txt)
@@ -201,8 +227,29 @@ def validate_params(template_id: str, p: dict):
     logger.info("Validated params for %s: %s", template_id, p)
     return p
 
+def fill_params(llm_out: dict):
+    tid = llm_out.get("template_id")
+    if not tid:
+        return llm_out
+    
+    meta = TEMPLATE_REGISTRY.get(tid, {})
+    req = meta.get("required_slots", [])
+    opt = meta.get("optional_slots", [])
+    
+    params = llm_out.get("params", {})
+    if params is None:
+        params = {}
+    all_slots = req + opt
+    
+    for slot in all_slots:
+        if slot not in params:
+            params[slot] = None 
+
+    llm_out["params"] = params
+    return llm_out
+    
 def choose_and_fill(question: str, schema_snippet: str = "", rules_snippet: str = ""):
-    cands = top_k(question, k=5)
+    cands = top_k(question, k=3)
     
     llm_out = call_llm_router(question, cands, schema_snippet, rules_snippet)
     if llm_out.get("needs_clarification", False):
@@ -222,4 +269,7 @@ def choose_and_fill(question: str, schema_snippet: str = "", rules_snippet: str 
         }
     
     llm_out["params"] = params
+    print(llm_out)
+    llm_out = fill_params(llm_out)
+    print(llm_out)
     return llm_out

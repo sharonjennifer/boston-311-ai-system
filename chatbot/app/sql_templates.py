@@ -4,11 +4,11 @@ TEMPLATES = {
     # A1) Case by ID (RAW)
     "CASE_BY_ID": {
         "sql": f"""
-        SELECT CAST(_id AS STRING) AS case_enquiry_id, open_dt, closed_dt, case_status,
+        SELECT case_enquiry_id, open_dt, closed_dt, case_status,
                department, reason, type, subject, case_title, location, neighborhood,
                longitude, latitude
         FROM {FULL_RAW}
-        WHERE CAST(_id AS STRING) = @case_id
+        WHERE CAST(case_enquiry_id AS STRING) = @case_id
         LIMIT 1;""",
         "params": ["case_id"],
     },
@@ -102,7 +102,7 @@ TEMPLATES = {
         )
         SELECT case_enquiry_id, open_dt, case_status, department, subject, case_title, location
         FROM cases, nei
-        WHERE geom IS NOT NULL AND ST_CONTAINS(nei.geom, geom)
+        WHERE cases.geom IS NOT NULL AND ST_CONTAINS(nei.geom, cases.geom)
         ORDER BY open_dt DESC
         LIMIT @k;""",
         "params": ["neighborhood","start_ts","end_ts","k"],
