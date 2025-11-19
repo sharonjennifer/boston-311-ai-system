@@ -1,0 +1,10 @@
+{
+  "algo": "xgboost",
+  "roc_auc": 0.8651554532290018,
+  "pr_auc": 0.9821966425345037,
+  "precision_at_1pct": 1.0,
+  "precision_at_5pct": 1.0,
+  "precision_at_10pct": 1.0,
+  "critical_threshold_at_5pct": 0.9997735619544983,
+  "label_pos_rate": 0.8964939204344233
+}

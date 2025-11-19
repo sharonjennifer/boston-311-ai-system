@@ -1,0 +1,15 @@
+{
+  "cat": [
+    "neighborhood",
+    "reason",
+    "department"
+  ],
+  "num": [
+    "hour_of_day",
+    "day_of_week",
+    "month",
+    "neigh_open_14d",
+    "prev_repeat_90d_30m",
+    "dept_pressure_30d"
+  ]
+}
