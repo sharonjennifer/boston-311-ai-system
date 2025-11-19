@@ -150,5 +150,15 @@ marimo/_lsp/
 __marimo__/
 
 # ==============================
+# ML PRIORITIZATION DASHBOARD
+# ==============================
+# Local Flask dashboard outputs
+ml_prioritization_dashboard/ml_priority_scores.csv
+
+# Local service code + creds
+services/
+
+
+# ==============================
 # END
 # ==============================
