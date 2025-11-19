@@ -480,7 +480,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## 👥 Authors
 
-- **Sharon Jennifer** - [GitHub](https://github.com/sharonjennifer)
+
 
 ---
 
