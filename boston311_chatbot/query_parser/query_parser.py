@@ -15,7 +15,7 @@ logging.basicConfig(
 logger = logging.getLogger("b311.parser")
 
 CURRENT_FILE = Path(__file__).resolve()
-PROJECT_ROOT = CURRENT_FILE.parent.parent
+PROJECT_ROOT = CURRENT_FILE.parent.parent.parent
 SECRET_KEY_PATH = PROJECT_ROOT / "secrets" / "sabari_secret.json"
 
 if SECRET_KEY_PATH.exists():

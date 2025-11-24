@@ -1,14 +1,13 @@
-# rag_system/vector_store.py
-
 import faiss
 import pickle
 import os
+import sys
 import logging
 import numpy as np
 
+from pathlib import Path
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-from data_definitions import VALID_VALUES
 
 load_dotenv()
 logging.basicConfig(
@@ -21,6 +20,12 @@ logger = logging.getLogger("b311.vector_store")
 CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_BASE_DIR = os.path.dirname(CURRENT_FILE_DIR)
 DATA_DIR_ENV = os.getenv("B311_DATA_DIR", "data")
+
+CURRENT_FILE = Path(__file__).resolve()
+PROJECT_ROOT = CURRENT_FILE.parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
+from rag.data_definitions import VALID_VALUES
 
 if os.path.isabs(DATA_DIR_ENV):
     DATA_DIR = DATA_DIR_ENV
@@ -42,13 +47,18 @@ class AttributeRetriever:
         self.indices = {}
         self.lookups = {} 
         
+        # Check if BOTH files exist
         artifacts_exist = os.path.exists(INDEX_PATH) and os.path.exists(META_PATH)
         
         if not force_rebuild and artifacts_exist:
-            logger.info("Artifacts found. Loading existing index...")
+            logger.info("Artifacts found. Loading existing index from disk...")
             self._load()
         else:
-            logger.info(f"Artifacts not found or rebuild forced. Initializing model: {self.model_name}")
+            if force_rebuild:
+                logger.info("Force rebuild requested.")
+            else:
+                logger.info("Artifacts not found. Building new index...")
+            
             self.model = SentenceTransformer(self.model_name)
             self._build_indices()
 
@@ -80,14 +90,30 @@ class AttributeRetriever:
         try:
             with open(META_PATH, "wb") as f:
                 pickle.dump(self.lookups, f)
-            logger.info(f"Metadata saved to {META_PATH}")
+            
+            with open(INDEX_PATH, "wb") as f:
+                pickle.dump(self.indices, f)
+                
+            logger.info(f"Successfully saved index and metadata to {DATA_DIR}")
         except Exception as e:
-            logger.error(f"Failed to save metadata: {e}")
+            logger.error(f"Failed to save artifacts: {e}")
             
     def _load(self):
-        logger.info("Rebuilding in-memory indices for dictionary support...")
-        self.model = SentenceTransformer(self.model_name)
-        self._build_indices()
+        try:
+            with open(META_PATH, "rb") as f:
+                self.lookups = pickle.load(f)
+            
+            with open(INDEX_PATH, "rb") as f:
+                self.indices = pickle.load(f)
+            
+            logger.info("Loading embedding model for query encoding...")
+            self.model = SentenceTransformer(self.model_name)
+            logger.info("Successfully loaded RAG system from disk.")
+            
+        except Exception as e:
+            logger.error(f"Failed to load artifacts: {e}. Triggering fallback rebuild.")
+            self.model = SentenceTransformer(self.model_name)
+            self._build_indices()
 
     def search(self, column, query, k=1, threshold=0.0):
         if column not in self.indices:
@@ -104,7 +130,6 @@ class AttributeRetriever:
             score = float(D[0][i])
             if idx >= 0 and score >= threshold:
                 val = self.lookups[column][idx]
-                logger.debug(f"Search '{query}' in '{column}' -> Found: {val} (Score: {score:.4f})")
                 results.append({
                     "value": val,
                     "score": round(score, 4)
