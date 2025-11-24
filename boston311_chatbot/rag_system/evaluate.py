@@ -2,8 +2,9 @@ import logging
 import os
 import csv
 
+from pathlib import Path
 from dotenv import load_dotenv
-from rag_system.vector_store import AttributeRetriever
+from vector_store import AttributeRetriever
 
 load_dotenv()
 logging.basicConfig(
@@ -12,8 +13,9 @@ logging.basicConfig(
 )
 logger = logging.getLogger("b311.evaluate")
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEST_FILE_PATH = os.path.join(BASE_DIR, "rag_test.csv")
+CURRENT_FILE = Path(__file__).resolve()
+PROJECT_ROOT = CURRENT_FILE.parent.parent
+TEST_FILE_PATH = PROJECT_ROOT / "tests" / "rag_test.csv"
 
 def load_test_cases(filepath):
     cases = []

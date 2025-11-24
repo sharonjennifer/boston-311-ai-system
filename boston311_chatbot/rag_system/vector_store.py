@@ -8,7 +8,7 @@ import numpy as np
 
 from dotenv import load_dotenv
 from sentence_transformers import SentenceTransformer
-from rag_system.data_definitions import VALID_VALUES
+from data_definitions import VALID_VALUES
 
 load_dotenv()
 logging.basicConfig(
