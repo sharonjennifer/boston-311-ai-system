@@ -135,3 +135,21 @@ class AttributeRetriever:
                     "score": round(score, 4)
                 })
         return results
+
+if __name__ == "__main__":
+    retriever = AttributeRetriever(force_rebuild=True)
+    test_queries = {
+        "neighborhood": "Downtown Boston",
+        "department": "Public Works",
+        "source": "Citizen report via mobile app",
+        "type": "Pothole",
+        "subject": "Street Cleaning",
+        "reason": "Noise Disturbance"
+    }
+    
+    for col, query in test_queries.items():
+        results = retriever.search(col, query, k=3, threshold=0.1)
+        print(f"Results for column '{col}' and query '{query}':")
+        for res in results:
+            print(f"  - Value: {res['value']}, Score: {res['score']}")
+        print()
