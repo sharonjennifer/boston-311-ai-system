@@ -1,4 +1,4 @@
-from app.config import FULL_RAW, REF_NEI, TBL_NEI_WEEK, TBL_DEPT_WEEK, TBL_DUR
+from app.config import FULL_RAW
 
 TEMPLATES = {
     # A1) Case by ID (RAW)
@@ -29,9 +29,10 @@ TEMPLATES = {
     # B2) Top-N neighborhoods (serving)
     "TOPN_NEIGHBORHOODS": {
         "sql": f"""
-        SELECT neighborhood, SUM(n) AS cases
-        FROM {TBL_NEI_WEEK}
-        WHERE week_start >= DATE_SUB(CURRENT_DATE(), INTERVAL @weeks WEEK)
+        SELECT neighborhood, COUNT(*) AS cases
+        FROM {FULL_RAW}
+        WHERE open_dt >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @weeks WEEK)
+          AND neighborhood IS NOT NULL
         GROUP BY neighborhood
         ORDER BY cases DESC
         LIMIT @k;""",
@@ -41,9 +42,12 @@ TEMPLATES = {
     # C1) Weekly trend by neighborhood (serving)
     "TREND_NEIGHBORHOOD": {
         "sql": f"""
-        SELECT week_start, neighborhood, SUM(n) AS cases
-        FROM {TBL_NEI_WEEK}
-        WHERE week_start >= DATE_SUB(CURRENT_DATE(), INTERVAL @weeks WEEK)
+        SELECT DATE_TRUNC(DATE(open_dt, 'America/New_York'), WEEK) as week_start, 
+               neighborhood, 
+               COUNT(*) AS cases
+        FROM {FULL_RAW}
+        WHERE open_dt >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @weeks WEEK)
+          AND neighborhood IS NOT NULL
         GROUP BY week_start, neighborhood
         ORDER BY week_start, neighborhood;""",
         "params": ["weeks"],
@@ -52,23 +56,28 @@ TEMPLATES = {
     # C2) Weekly trend by department (serving)
     "TREND_DEPARTMENT": {
         "sql": f"""
-        SELECT week_start, department, SUM(n) AS cases
-        FROM {TBL_DEPT_WEEK}
-        WHERE week_start >= DATE_SUB(CURRENT_DATE(), INTERVAL @weeks WEEK)
+        SELECT DATE_TRUNC(DATE(open_dt, 'America/New_York'), WEEK) as week_start, 
+               department, 
+               COUNT(*) AS cases
+        FROM {FULL_RAW}
+        WHERE open_dt >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @weeks WEEK)
+          AND department IS NOT NULL
         GROUP BY week_start, department
         ORDER BY week_start, department;""",
         "params": ["weeks"],
     },
-
+    
     # D1) Avg days to close by department (serving)
     "AVG_DAYS_TO_CLOSE_BY_DEPT": {
         "sql": f"""
         SELECT department,
-               AVG(days_to_close) AS avg_days_to_close,
-               COUNTIF(days_to_close IS NOT NULL) AS closed_cases
-        FROM {TBL_DUR}
+               AVG(TIMESTAMP_DIFF(closed_dt, open_dt, HOUR) / 24.0) AS avg_days_to_close,
+               COUNT(*) AS closed_cases
+        FROM {FULL_RAW}
         WHERE open_dt >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @days DAY)
-          AND days_to_close IS NOT NULL
+          AND case_status = 'Closed'
+          AND closed_dt IS NOT NULL
+          AND open_dt IS NOT NULL
         GROUP BY department
         ORDER BY avg_days_to_close;""",
         "params": ["days"],
@@ -89,20 +98,10 @@ TEMPLATES = {
     # E1) Cases inside neighborhood polygon (RAW + WKB→GEOG)
     "GEO_POLYGON": {
         "sql": f"""
-        WITH nei AS (
-          SELECT geom FROM {REF_NEI} WHERE neighborhood_name = @neighborhood
-        ),
-        cases AS (
-          SELECT CAST(_id AS STRING) AS case_enquiry_id, open_dt, case_status, department,
-                 subject, case_title, location,
-                 ST_GEOGFROMWKB(FROM_HEX(geom_4326)) AS geom
-          FROM {FULL_RAW}
-          WHERE open_dt BETWEEN @start_ts AND @end_ts
-            AND geom_4326 IS NOT NULL
-        )
         SELECT case_enquiry_id, open_dt, case_status, department, subject, case_title, location
-        FROM cases, nei
-        WHERE cases.geom IS NOT NULL AND ST_CONTAINS(nei.geom, cases.geom)
+        FROM {FULL_RAW}
+        WHERE open_dt BETWEEN @start_ts AND @end_ts
+          AND UPPER(TRIM(neighborhood)) = UPPER(TRIM(@neighborhood))
         ORDER BY open_dt DESC
         LIMIT @k;""",
         "params": ["neighborhood","start_ts","end_ts","k"],
