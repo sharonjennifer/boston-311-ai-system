@@ -1,5 +1,6 @@
 [
   {
+    "run_timestamp": "20251127T072240Z",
     "name": "hgb_baseline",
     "algo": "hist_gradient_boosting",
     "params": {
@@ -34,6 +35,7 @@
     "val_f1": 0.9471857100026825
   },
   {
+    "run_timestamp": "20251127T072243Z",
     "name": "hgb_regularized",
     "algo": "hist_gradient_boosting",
     "params": {

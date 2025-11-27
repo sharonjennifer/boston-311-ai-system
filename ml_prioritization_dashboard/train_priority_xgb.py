@@ -15,6 +15,8 @@ import datetime
 import tarfile
 from google.cloud import storage
 import matplotlib.pyplot as plt
+import mlflow
+import mlflow.sklearn
 
 
 
@@ -49,6 +51,12 @@ MODEL_DIR.mkdir(exist_ok=True)
 MODEL_NAME = "priority_xgb"
 REGISTRY_BUCKET = os.getenv("MODEL_REGISTRY_BUCKET", "boston311-ml-model-registry")
 
+# MLflow tracking
+MLFLOW_TRACKING_URI = str(ROOT_DIR / "mlruns")
+MLFLOW_EXPERIMENT_NAME = "priority_xgb_ci"
+
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
 
@@ -335,6 +343,7 @@ best_val_metrics = {}
 
 print("[INFO] Starting model selection over candidates...")
 all_runs = []
+
 for name, base_model, algo in candidates:
     pipe = Pipeline([
         ("pre", pre),
@@ -342,58 +351,57 @@ for name, base_model, algo in candidates:
     ])
 
     print(f"[INFO] Training candidate model: {name} ({algo})")
-    pipe.fit(X_train, y_train, clf__sample_weight=w_train)
 
-    # Evaluate on validation
-    clf = pipe.named_steps["clf"]
-    if hasattr(clf, "predict_proba"):
-        val_proba = pipe.predict_proba(X_val)[:, 1]
-    else:
-        val_proba = pipe.predict(X_val)
+    # Start an MLflow run for this candidate
+    with mlflow.start_run(run_name=name):
+        # Log basic info
+        mlflow.set_tag("model_name", MODEL_NAME)
+        mlflow.set_tag("algo", algo)
+        mlflow.log_param("candidate_name", name)
 
-    val_roc_auc = float(roc_auc_score(y_val, val_proba))
-    val_pr_auc = float(average_precision_score(y_val, val_proba))
-    val_prec_5 = precision_at_k(y_val, val_proba, 0.05)
-    # default threshold 0.5 for class predictions on val
-    val_pred = (val_proba >= 0.5).astype(int)
+        # Log model hyperparameters
+        params = getattr(base_model, "get_params", lambda: {})()
+        for p_name, p_val in params.items():
+            # MLflow expects str/float/int/bool; ignore weird types
+            if isinstance(p_val, (str, int, float, bool)) or p_val is None:
+                mlflow.log_param(p_name, p_val)
 
-    val_accuracy = float(accuracy_score(y_val, val_pred))
-    val_precision = float(precision_score(y_val, val_pred, zero_division=0))
-    val_recall = float(recall_score(y_val, val_pred, zero_division=0))
-    val_f1 = float(f1_score(y_val, val_pred, zero_division=0))
-    run_ts = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-    all_runs.append({
-    "name": name,
-    "algo": algo,
-    "params": getattr(base_model, "get_params", lambda: {})(),
-    "val_roc_auc": val_roc_auc,
-    "val_pr_auc": val_pr_auc,
-    "val_precision_at_5pct": val_prec_5,
-    "val_accuracy": val_accuracy,
-    "val_precision": val_precision,
-    "val_recall": val_recall,
-    "val_f1": val_f1,})
+        # Fit model
+        pipe.fit(X_train, y_train, clf__sample_weight=w_train)
 
+        # Evaluate on validation
+        clf = pipe.named_steps["clf"]
+        if hasattr(clf, "predict_proba"):
+            val_proba = pipe.predict_proba(X_val)[:, 1]
+        else:
+            val_proba = pipe.predict(X_val)
 
-    print(
-        f"[INFO] {name} - "
-        f"val ROC-AUC={val_roc_auc:.3f}, "
-        f"val PR-AUC={val_pr_auc:.3f}, "
-        f"val precision@5%={val_prec_5:.3f}, "
-        f"val acc={val_accuracy:.3f}, "
-        f"val prec={val_precision:.3f}, "
-        f"val rec={val_recall:.3f}, "
-        f"val f1={val_f1:.3f}"
-    )
+        val_roc_auc = float(roc_auc_score(y_val, val_proba))
+        val_pr_auc = float(average_precision_score(y_val, val_proba))
+        val_prec_5 = precision_at_k(y_val, val_proba, 0.05)
+        val_pred = (val_proba >= 0.5).astype(int)
 
+        val_accuracy = float(accuracy_score(y_val, val_pred))
+        val_precision = float(precision_score(y_val, val_pred, zero_division=0))
+        val_recall = float(recall_score(y_val, val_pred, zero_division=0))
+        val_f1 = float(f1_score(y_val, val_pred, zero_division=0))
 
-    # Use PR-AUC on validation as selection metric
-    if val_pr_auc > best_val_pr_auc:
-        best_val_pr_auc = val_pr_auc
-        best_name = name
-        best_algo = algo
-        best_pipe = pipe
-        best_val_metrics = {
+        # Log validation metrics to MLflow
+        mlflow.log_metric("val_roc_auc", val_roc_auc)
+        mlflow.log_metric("val_pr_auc", val_pr_auc)
+        mlflow.log_metric("val_precision_at_5pct", val_prec_5)
+        mlflow.log_metric("val_accuracy", val_accuracy)
+        mlflow.log_metric("val_precision", val_precision)
+        mlflow.log_metric("val_recall", val_recall)
+        mlflow.log_metric("val_f1", val_f1)
+
+        # Also keep our existing JSON experiment log
+        run_ts = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        all_runs.append({
+            "run_timestamp": run_ts,
+            "name": name,
+            "algo": algo,
+            "params": params,
             "val_roc_auc": val_roc_auc,
             "val_pr_auc": val_pr_auc,
             "val_precision_at_5pct": val_prec_5,
@@ -401,7 +409,34 @@ for name, base_model, algo in candidates:
             "val_precision": val_precision,
             "val_recall": val_recall,
             "val_f1": val_f1,
-        }
+        })
+
+        print(
+            f"[INFO] {name} - "
+            f"val ROC-AUC={val_roc_auc:.3f}, "
+            f"val PR-AUC={val_pr_auc:.3f}, "
+            f"val precision@5%={val_prec_5:.3f}, "
+            f"val acc={val_accuracy:.3f}, "
+            f"val prec={val_precision:.3f}, "
+            f"val rec={val_recall:.3f}, "
+            f"val f1={val_f1:.3f}"
+        )
+
+        # Model selection by val PR-AUC
+        if val_pr_auc > best_val_pr_auc:
+            best_val_pr_auc = val_pr_auc
+            best_name = name
+            best_algo = algo
+            best_pipe = pipe
+            best_val_metrics = {
+                "val_roc_auc": val_roc_auc,
+                "val_pr_auc": val_pr_auc,
+                "val_precision_at_5pct": val_prec_5,
+                "val_accuracy": val_accuracy,
+                "val_precision": val_precision,
+                "val_recall": val_recall,
+                "val_f1": val_f1,
+            }
 
 
 if best_pipe is None:

@@ -8,6 +8,7 @@ matplotlib
 # Model libraries
 xgboost
 fairlearn
+mlflow
 
 # Google Cloud clients
 google-cloud-bigquery
