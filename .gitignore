@@ -152,18 +152,26 @@ __marimo__/
 # ==============================
 # ML PRIORITIZATION DASHBOARD
 # ==============================
-# Local Flask dashboard outputs
+
+# Local Flask dashboard CSV export
 ml_prioritization_dashboard/ml_priority_scores.csv
 
-# Local service code + creds
-services/
+# Virtualenvs
+.venv311/
+ml_prioritization_dashboard/.venv311/
 
+# Large model artifacts for the dashboard
+# (keep JSON/PNG metadata & plots in git, ignore heavy binaries)
+ml_prioritization_dashboard/models/*.tar.gz
+ml_prioritization_dashboard/models/*.pkl
+
+# If you have a ROOT-LEVEL models/ directory you want to ignore,
+# use this anchored pattern (won't affect ml_prioritization_dashboard/models):
+/models/
+
+# Local service code + creds (do not commit)
+services/
 
 # ==============================
 # END
-# ==============================ml_prioritization_dashboard/.venv311/
-ml_prioritization_dashboard/models/*.tar.gz
-models/
-.venv311/
-ml_prioritization_dashboard/models/priority_model.pkl
-ml_prioritization_dashboard/ml_priority_scores.csv
+# ==============================
