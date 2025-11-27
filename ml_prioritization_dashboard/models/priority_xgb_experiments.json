@@ -25,13 +25,13 @@
       "verbose": 0,
       "warm_start": false
     },
-    "val_roc_auc": 0.8597250778940992,
-    "val_pr_auc": 0.981345811740624,
+    "val_roc_auc": 0.8557132040688679,
+    "val_pr_auc": 0.9807567903988966,
     "val_precision_at_5pct": 1.0,
-    "val_accuracy": 0.9026974383189706,
-    "val_precision": 0.9103278986605249,
-    "val_recall": 0.9888731606149389,
-    "val_f1": 0.9479763313609467
+    "val_accuracy": 0.9012218156061859,
+    "val_precision": 0.909595102436659,
+    "val_recall": 0.9880172498930112,
+    "val_f1": 0.9471857100026825
   },
   {
     "name": "hgb_regularized",
@@ -59,12 +59,12 @@
       "verbose": 0,
       "warm_start": false
     },
-    "val_roc_auc": 0.8564593497930236,
-    "val_pr_auc": 0.9808154610250208,
+    "val_roc_auc": 0.8524590452464302,
+    "val_pr_auc": 0.9802254065826135,
     "val_precision_at_5pct": 1.0,
-    "val_accuracy": 0.9018710895998111,
-    "val_precision": 0.9081718872593397,
-    "val_recall": 0.9907166606313987,
-    "val_f1": 0.9476501613792018
+    "val_accuracy": 0.9006315665210719,
+    "val_precision": 0.9079813908525165,
+    "val_recall": 0.9894327945485071,
+    "val_f1": 0.9469588367806676
   }
 ]
