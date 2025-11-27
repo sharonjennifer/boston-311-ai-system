@@ -164,3 +164,6 @@ services/
 # ==============================ml_prioritization_dashboard/.venv311/
 ml_prioritization_dashboard/models/*.tar.gz
 models/
+.venv311/
+ml_prioritization_dashboard/models/priority_model.pkl
+ml_prioritization_dashboard/ml_priority_scores.csv
