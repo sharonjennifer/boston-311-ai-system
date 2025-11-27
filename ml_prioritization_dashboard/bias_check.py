@@ -225,7 +225,7 @@ full_report = {
     **gap_summary,
 }
 
-# Save bias report (raw)
+# Save bias report
 out_path = MODEL_DIR / "bias_report.json"
 with open(out_path, "w") as f:
     json.dump(full_report, f, indent=2)
