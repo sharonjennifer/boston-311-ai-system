@@ -1,0 +1,147 @@
+name: ML Priority Model CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - "ml_prioritization_dashboard/**"
+  pull_request:
+    branches: [ main ]
+    paths:
+      - "ml_prioritization_dashboard/**"
+
+jobs:
+  train-validate-bias-check:
+    runs-on: ubuntu-latest
+
+    env:
+      GCP_PROJECT: boston311-mlops
+      BQ_LOCATION: US
+      MODEL_REGISTRY_BUCKET: boston311-ml-model-registry
+      TRAIN_FEATURE_TABLE: tbl_train_features
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -r ml_prioritization_dashboard/requirements.txt
+
+      - name: Write GCP service account key
+        # Store your GCP SA JSON in repo secrets as GCP_SA_KEY
+        run: |
+          echo "${{ secrets.GCP_SA_KEY }}" > $HOME/gcp_sa.json
+          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcp_sa.json" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Run model training (includes registry push)
+        run: |
+          python ml_prioritization_dashboard/train_priority_xgb.py
+        shell: bash
+
+      - name: Validate model metrics against thresholds
+        run: |
+          python - << 'EOF'
+          import json
+          from pathlib import Path
+
+          report_path = Path("ml_prioritization_dashboard/models/model_report.json")
+          if not report_path.exists():
+              raise SystemExit("model_report.json not found")
+
+          metrics = json.loads(report_path.read_text())
+
+          test_pr_auc = metrics.get("test_pr_auc", 0.0)
+          test_roc_auc = metrics.get("test_roc_auc", 0.0)
+          test_f1 = metrics.get("test_f1", 0.0)
+
+          print(f"test_pr_auc={test_pr_auc}, test_roc_auc={test_roc_auc}, test_f1={test_f1}")
+
+          ok = True
+          if test_pr_auc < 0.40:
+              print("FAIL: test_pr_auc below threshold 0.40")
+              ok = False
+          if test_roc_auc < 0.75:
+              print("FAIL: test_roc_auc below threshold 0.75")
+              ok = False
+          if test_f1 < 0.50:
+              print("FAIL: test_f1 below threshold 0.50")
+              ok = False
+
+          if not ok:
+              raise SystemExit(1)
+          EOF
+        shell: bash
+
+      - name: Run bias checks
+        run: |
+          python ml_prioritization_dashboard/bias_check.py
+        shell: bash
+
+      - name: Enforce bias thresholds
+        run: |
+          python - << 'EOF'
+          import json
+          from pathlib import Path
+
+          bias_path = Path("ml_prioritization_dashboard/models/bias_report_mitigated.json")
+          if not bias_path.exists():
+              print("WARNING: bias report not found; failing CI for safety.")
+              raise SystemExit(1)
+
+          bias = json.loads(bias_path.read_text())
+
+          # Example: enforce that any *_gap keys are <= 0.20
+          ok = True
+          gap_keys = [k for k in bias.keys() if k.endswith("_gap")]
+          if not gap_keys:
+              print("No *_gap keys found in bias report; please align with your schema.")
+          else:
+              for key in gap_keys:
+                  gap = float(bias[key])
+                  print(f"{key}={gap}")
+                  if gap > 0.20:
+                      print(f"FAIL: {key} exceeds allowed gap of 0.20")
+                      ok = False
+
+          if not ok:
+              raise SystemExit(1)
+          EOF
+        shell: bash
+
+      # NEW: email notifications – runs on success or failure
+      - name: Send email notification
+        if: always()
+        uses: dawidd6/action-send-mail@v6
+        with:
+          # SMTP server (Gmail example)
+          server_address: smtp.gmail.com
+          server_port: 465
+          secure: true
+
+          # Auth from GitHub Secrets
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
+
+          # Email metadata
+          subject: "Boston 311 ML CI – ${{ job.status }}"
+          from: "Boston311 CI Bot <${{ secrets.MAIL_USERNAME }}>"
+          to: "aidevadarshini2002@gmail.com,harishvtcp@gmail.com"
+
+          # Email body
+          body: |
+            Workflow: ${{ github.workflow }}
+            Repository: ${{ github.repository }}
+            Branch: ${{ github.ref }}
+            Commit: ${{ github.sha }}
+            Status: ${{ job.status }}
+
+            Run URL:
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
