@@ -1,12 +1,29 @@
-from pathlib import Path
+"""
+priority_dashboard_app.py
+
+Flask app to serve the ML priority dashboard.
+
+Assumes scores have been written by score_priority_xgb.py into:
+  boston311-mlops.boston311_service.cases_ranking_ml
+
+That table is populated using the latest hyperparameter-tuned,
+bias-evaluated model saved at:
+  ml_prioritization_dashboard/models/priority_model.pkl
+"""
+
 import os
+from pathlib import Path
 
 from flask import Flask, render_template, request
 from google.cloud import bigquery
 import pandas as pd
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-SA_PATH = BASE_DIR / "secrets" / "bq-dashboard-ro.json"
+# ROOT_DIR = repo root (.../boston-311-ai-system)
+ROOT_DIR = Path(__file__).resolve().parent.parent
+# APP_DIR  = ml_prioritization_dashboard folder
+APP_DIR = Path(__file__).resolve().parent
+
+SA_PATH = ROOT_DIR / "secrets" / "bq-dashboard-ro.json"
 
 if SA_PATH.exists():
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(SA_PATH)
@@ -17,9 +34,9 @@ else:
         "Falling back to default ADC. Make sure creds are set."
     )
 
-PROJECT = "boston311-mlops"
-DATASET = "boston311_service"
-TABLE = "cases_ranking_ml"
+PROJECT     = "boston311-mlops"
+DATASET     = "boston311_service"
+TABLE       = "cases_ranking_ml"
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
 
 app = Flask(__name__)
@@ -27,6 +44,7 @@ bq_client = bigquery.Client(project=PROJECT, location=BQ_LOCATION)
 
 
 def load_data() -> pd.DataFrame:
+    """Load latest scored cases from BigQuery."""
     query = f"""
     SELECT
       case_enquiry_id,
@@ -51,9 +69,10 @@ def load_data() -> pd.DataFrame:
 def index():
     df = load_data()
 
+    # All critical cases (for global charts)
     df_all_crit = df[df["segment"] == "CRITICAL"]
 
-    # Critical by neighborhood (top 5) – NOT filtered
+    # Critical by neighborhood (top 5) 
     if not df_all_crit.empty:
         crit_by_neigh_all = (
             df_all_crit.dropna(subset=["neighborhood"])
@@ -69,7 +88,7 @@ def index():
         crit_neigh_labels_all = []
         crit_neigh_counts_all = []
 
-    # Critical by department (top 5) – NOT filtered
+    # Critical by department (top 5) 
     if not df_all_crit.empty:
         crit_by_dept_all = (
             df_all_crit.dropna(subset=["department"])
@@ -85,14 +104,17 @@ def index():
         crit_dept_labels_all = []
         crit_dept_counts_all = []
 
+    # Filter dropdown values
     neighborhoods = sorted(df["neighborhood"].dropna().unique())
     reasons = sorted(df["reason"].dropna().unique())
     departments = sorted(df["department"].dropna().unique())
 
+    # Selected filters (GET params)
     sel_neigh = request.args.get("neighborhood", "ALL")
     sel_reason = request.args.get("reason", "ALL")
     sel_dept = request.args.get("department", "ALL")
 
+    # Apply filters
     df_filt = df.copy()
     if sel_neigh != "ALL":
         df_filt = df_filt[df_filt["neighborhood"] == sel_neigh]
@@ -101,13 +123,19 @@ def index():
     if sel_dept != "ALL":
         df_filt = df_filt[df_filt["department"] == sel_dept]
 
-    df_crit_filt = df_filt[df_filt["segment"] == "CRITICAL"].sort_values(
-        "priority_score", ascending=False
-    ).head(100)
-    df_sec_filt = df_filt[df_filt["segment"] == "SECONDARY"].sort_values(
-        "priority_score", ascending=False
-    ).head(100)
+    # Top 100 critical & secondary in filtered subset
+    df_crit_filt = (
+        df_filt[df_filt["segment"] == "CRITICAL"]
+        .sort_values("priority_score", ascending=False)
+        .head(100)
+    )
+    df_sec_filt = (
+        df_filt[df_filt["segment"] == "SECONDARY"]
+        .sort_values("priority_score", ascending=False)
+        .head(100)
+    )
 
+    # Summary stats for filtered subset
     total_open = len(df_filt)
     num_crit = len(df_crit_filt)
     crit_share = (num_crit / total_open * 100) if total_open > 0 else 0.0
@@ -118,7 +146,7 @@ def index():
         "crit_share": f"{crit_share:.1f}",
     }
 
-    # Map data = filtered + only rows with lat/lon
+    # Map data (filtered + only rows with lat/lon)
     map_cols = [
         "case_enquiry_id",
         "neighborhood",
@@ -130,6 +158,7 @@ def index():
         "longitude",
     ]
     map_cols_existing = [c for c in map_cols if c in df_filt.columns]
+
     if {"latitude", "longitude"}.issubset(df_filt.columns):
         map_df = df_filt[map_cols_existing].dropna(subset=["latitude", "longitude"])
         map_cases = map_df.to_dict(orient="records")
