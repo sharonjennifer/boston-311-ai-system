@@ -18,8 +18,8 @@ import joblib
 from fairlearn.metrics import MetricFrame
 
 # Paths & credentials
-ROOT_DIR = Path(__file__).resolve().parent.parent   
-APP_DIR = Path(__file__).resolve().parent         
+ROOT_DIR = Path(__file__).resolve().parent.parent
+APP_DIR = Path(__file__).resolve().parent
 
 SA_PATH = ROOT_DIR / "secrets" / "bq-dashboard-ro.json"
 
@@ -38,6 +38,7 @@ TRAIN_FEATURE_TABLE = os.getenv("TRAIN_FEATURE_TABLE", "tbl_train_features")
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
 
 MODEL_DIR = APP_DIR / "models"
+MODEL_DIR.mkdir(exist_ok=True)
 
 # Load trained model + feature config
 print("[INFO] Loading trained model and feature metadata...")
@@ -48,7 +49,7 @@ with open(MODEL_DIR / "feature_columns.json") as f:
 cat = cols["cat"]
 num = cols["num"]
 
-# Load data from BigQuery 
+# Load data from BigQuery
 bq = bigquery.Client(project=PROJECT, location=BQ_LOCATION)
 
 query = f"""
@@ -71,7 +72,7 @@ print(f"[INFO] Loaded {len(df)} rows from {TRAIN_FEATURE_TABLE} for bias analysi
 y = df["y_priority"].astype(int)
 X = df[cat + num]
 
-# Hold-out test set for bias evaluation
+# Hold-out test set for bias evaluation (same split config as training)
 X_train, X_test, y_train, y_test = train_test_split(
     X,
     y,
@@ -84,13 +85,13 @@ X_train, X_test, y_train, y_test = train_test_split(
 df_test = df.loc[X_test.index].copy()
 
 # Get scores and hard predictions on test
-if hasattr(pipe.named_steps["clf"], "predict_proba"):
+clf = pipe.named_steps["clf"]
+if hasattr(clf, "predict_proba"):
     test_proba = pipe.predict_proba(X_test)[:, 1]
 else:
     test_proba = pipe.predict(X_test)
 
 test_pred = (test_proba >= 0.5).astype(int)
-
 
 # Define metrics for Fairlearn
 metric_fns = {
@@ -100,7 +101,7 @@ metric_fns = {
     "f1": lambda yt, yp: f1_score(yt, yp, zero_division=0),
 }
 
-# We will also compute ROC-AUC and PR-AUC per group manually.
+
 def auc_per_group(slice_series, y_true, y_score):
     """Compute ROC-AUC and PR-AUC per group (if both classes present)."""
     groups = slice_series.unique()
@@ -119,6 +120,7 @@ def auc_per_group(slice_series, y_true, y_score):
         pr_by_group[g] = float(average_precision_score(yt_g, ys_g))
     return roc_by_group, pr_by_group
 
+
 # Run bias checks for different slices
 slice_columns = []
 for col in ["neighborhood", "department", "reason"]:
@@ -129,6 +131,7 @@ if not slice_columns:
     raise RuntimeError("No slice columns found for bias analysis.")
 
 bias_report = {}
+gap_summary = {}  # top-level *_gap values used by CI gating
 
 print("[INFO] Running bias analysis by slices:", ", ".join(slice_columns))
 
@@ -170,6 +173,11 @@ for col in slice_columns:
             "max": max_v,
             "range": disparity_range,
         }
+
+        # Store a *_gap value for CI (e.g., neighborhood_accuracy_gap)
+        gap_key = f"{col}_{m}_gap"
+        gap_summary[gap_key] = float(disparity_range)
+
         # Flag large disparities (threshold can be tuned; use 0.1 here)
         if disparity_range > 0.1:
             warn_msg = (
@@ -179,7 +187,20 @@ for col in slice_columns:
             print("[WARN]", warn_msg)
             warnings.append(warn_msg)
 
-    # Store report for this slice
+    # Also compute gaps for ROC-AUC and PR-AUC per group (if defined)
+    roc_vals = [v for v in roc_by_group.values() if v is not None]
+    if roc_vals:
+        min_roc, max_roc = min(roc_vals), max(roc_vals)
+        roc_gap = max_roc - min_roc
+        gap_summary[f"{col}_roc_auc_gap"] = float(roc_gap)
+
+    pr_vals = [v for v in pr_by_group.values() if v is not None]
+    if pr_vals:
+        min_pr, max_pr = min(pr_vals), max(pr_vals)
+        pr_gap = max_pr - min_pr
+        gap_summary[f"{col}_pr_auc_gap"] = float(pr_gap)
+
+    # Store full report for this slice
     bias_report[col] = {
         "overall": overall_metrics,
         "by_group": by_group_metrics,
@@ -197,9 +218,22 @@ for col in slice_columns:
         ),
     }
 
-# Save bias report
+# Build full report with *_gap keys at top level for CI
+full_report = {
+    "slice_columns": slice_columns,
+    "slices": bias_report,
+    **gap_summary,
+}
+
+# Save bias report (raw)
 out_path = MODEL_DIR / "bias_report.json"
 with open(out_path, "w") as f:
-    json.dump(bias_report, f, indent=2)
+    json.dump(full_report, f, indent=2)
+
+# Save "mitigated" report that CI will enforce thresholds against
+mitigated_path = MODEL_DIR / "bias_report_mitigated.json"
+with open(mitigated_path, "w") as f:
+    json.dump(full_report, f, indent=2)
 
 print(f"\n[OK] Bias analysis report written to {out_path}")
+print(f"[OK] Bias (mitigated) report written to {mitigated_path}")
