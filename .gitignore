@@ -161,4 +161,6 @@ services/
 
 # ==============================
 # END
-# ==============================
+# ==============================ml_prioritization_dashboard/.venv311/
+ml_prioritization_dashboard/models/*.tar.gz
+models/
