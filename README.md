@@ -124,30 +124,125 @@ The Boston 311 AI System processes and analyzes Boston's non-emergency service r
   - Sends email notifications via Composer
 
 ---
-
 ### 2. **ML Priority Prediction System**
 
 Located in `ml_prioritization_dashboard/`:
 
 #### Training Pipeline (`train_priority_xgb.py`)
-- **Model**: XGBoost classifier
-- **Features**: Case type, neighborhood, department, time features, historical metrics
-- **Output**: Trained model saved in `models/` directory
-- **Metrics**: Classification report, feature importance
+- Uses the engineered feature table `boston311-mlops.boston311_service.tbl_train_features`.
+- Builds a preprocessing + model pipeline with one-hot encoding for categorical features and numeric features passed through.
+- Trains multiple XGBoost (with HistGradientBoosting fallback) candidate models with different hyperparameters.
+- Applies **inverse-frequency re-weighting** over `neighborhood`, `department`, and `reason` to mitigate bias during training.
+- Logs runs and metrics to local MLflow (`mlruns/`) and records all candidates in `models/priority_xgb_experiments.json`.
+- Selects the best model on validation PR-AUC, then retrains it on train+validation and evaluates on a hold-out test set.
+- Saves the final pipeline, reports, plots, SHAP metadata, and feature schema into `ml_prioritization_dashboard/models/`.
+- Implements a **rollback gate** that compares the new test PR-AUC against the previous production report and only promotes the model if there is no significant regression.
+- Packages the promoted model plus all artifacts into a tarball and uploads a versioned model bundle + `metadata.json` to a GCS **model registry** bucket.
 
 #### Scoring Pipeline (`score_priority_xgb.py`)
-- **Function**: Real-time priority prediction for new cases
-- **Input**: BigQuery service request data
-- **Output**: Priority scores (High/Medium/Low)
+- Loads the latest promoted model (`priority_model.pkl`) and feature schema (`feature_columns.json`).
+- Reads open-case features from the BigQuery view `boston311-mlops.boston311_service.v_open_case_features`.
+- Scores every open case with a continuous `priority_score`.
+- Ranks cases globally and labels roughly the top 5% as **CRITICAL** and the rest as **SECONDARY**, adding a `rank_overall` field.
+- Writes results to:
+  - `ml_prioritization_dashboard/ml_priority_scores.csv` for offline analysis.
+  - BigQuery table `boston311-mlops.boston311_service.cases_ranking_ml`, which is the canonical source for all dashboards.
 
-#### Flask Dashboard (`priority_dashboard_app.py`)
-- **Routes**:
-  - `/` - Overview with priority distribution
-  - `/predict` - Real-time prediction interface
-  - `/model-info` - Model performance metrics
-- **UI**: HTML templates in `templates/`
+#### Bias & Fairness Evaluation (`bias_check.py`, `bias_mitigation.py`)
+- Rebuilds the same train/test split used in the training script to ensure consistent evaluation.
+- Uses Fairlearn `MetricFrame` to compute accuracy, precision, recall, F1, ROC-AUC, and PR-AUC across slices:
+  - `neighborhood`
+  - `department`
+  - `reason`
+- Produces detailed JSON reports:
+  - `bias_report.json`
+  - `bias_report_mitigated.json`
+- Each report includes per-group metrics, disparity ranges (`*_gap` values) and human-readable warnings plus suggested mitigation strategies, enabling CI bias checks and documentation of fairness behavior.
 
----
+#### Feature Sensitivity & Explainability (`feature_sensitivity.py`, `plot_experiment_sensitivity.py`)
+- Aggregates all candidate runs from `priority_xgb_experiments.json` and generates comparison plots for validation PR-AUC and ROC-AUC.
+- Samples rows from the training feature table and computes SHAP values for the final tree-based model.
+- Produces:
+  - `feature_importance_shap.json` with mean |SHAP| per original feature.
+  - `feature_importance_shap.png` and model comparison plots to document which features drive criticality predictions and how different hyperparameter settings perform.
+
+#### Flask Priority Dashboard (`priority_dashboard_app.py`)
+- Consumes the scored BigQuery table `boston311-mlops.boston311_service.cases_ranking_ml`.
+- Exposes a single dashboard route (`/`) that:
+  - Provides filter dropdowns for neighborhood, reason, and department.
+  - Shows summary stats (total open cases, number and share of CRITICAL cases).
+  - Lists the top 100 CRITICAL and top 100 SECONDARY cases in the current filter view.
+  - Prepares aggregations for “critical by neighborhood” and “critical by department” charts.
+  - Exposes a map-ready list of cases (with coordinates, segment, and score) for geospatial visualization.
+- Uses the `templates/dashboard.html` Jinja2 template to render a human-readable ML priority dashboard backed entirely by the model outputs.
+
+#### Dockerized Training & Bias Checks (`docker/priority_model/`)
+- Provides a production-ready Docker image for the ML training and bias workflows.
+- `docker/priority_model/Dockerfile` builds a Python 3.11 image, installs the ML dashboard requirements, and sets up GCP authentication via a mounted service account JSON.
+- `run_train_docker.sh` runs the training pipeline inside Docker, mounting:
+  - `secrets/bq-dashboard-ro.json` for BigQuery access,
+  - `ml_prioritization_dashboard/models/` as a volume so trained artifacts are written back to the host.
+- `run_bias_docker.sh` executes the bias analysis script in the same containerized environment.
+- This setup allows anyone (with their own GCP project and service account) to re-train the model and regenerate all metrics, plots, and bias reports in a reproducible, environment-isolated way.
+
+#### CI/CD for the Priority Model (GitHub Actions + Email Alerts)
+
+The priority model is integrated into a dedicated CI pipeline using GitHub Actions:
+
+- A workflow under `.github/workflows/` automatically runs the **priority model CI** whenever:
+  - Changes are pushed to `main` that touch `ml_prioritization_dashboard/**` or `docker/priority_model/**`.
+  - A pull request targets `main` (pre-merge validation).
+  - On a scheduled basis (cron) to re-run training and bias checks and detect silent regressions.
+
+- The workflow is organized into the following logical steps:
+  1. **Checkout & environment setup**  
+     - Checks out the repository and sets up Python and Docker on the GitHub runner.  
+     - Loads required secrets (GCP project, BigQuery location, model registry bucket, training feature table, and service-account JSON) from GitHub Encrypted Secrets.
+
+  2. **Build Docker training image**  
+     - Builds the `boston311-priority-train` image from `docker/priority_model/Dockerfile`.  
+     - This image contains all dependencies needed to run `train_priority_xgb.py` and the associated analysis scripts.
+
+  3. **Run training inside Docker**  
+     - Invokes the container with `run_train_docker.sh`, mounting:
+       - `secrets/bq-dashboard-ro.json` as `/app/secrets/bq-dashboard-ro.json` (read-only), and  
+       - `ml_prioritization_dashboard/models/` so that new artifacts are written back to the repo workspace.  
+     - Executes the full training flow:
+       - Loads features from `boston311-mlops.boston311_service.tbl_train_features`.  
+       - Trains candidate models with bias-aware sample weights.  
+       - Selects the best model based on validation PR-AUC.  
+       - Evaluates on a hold-out test set and applies the **rollback gate**.  
+       - Saves the final `priority_model.pkl`, `model_report.json`, SHAP artifacts, comparison plots, and experiment log.  
+       - Packages artifacts into a tarball and pushes a new versioned bundle to the GCS **model registry** when the gate passes.
+
+  4. **Run bias checks inside Docker**  
+     - Calls `run_bias_docker.sh` in the same image to execute the bias analysis scripts (`bias_check.py` / `bias_mitigation.py`).  
+     - Regenerates `bias_report.json` and `bias_report_mitigated.json`, which include per-group metrics and `*_gap` disparity values for `neighborhood`, `department`, and `reason`.
+
+  5. **Enforce performance and fairness gates in CI**  
+     - Parses `model_report.json` and `bias_report_mitigated.json`.  
+     - Fails the workflow if:
+       - The new test PR-AUC drops more than a small allowed tolerance compared to the existing production report, **or**  
+       - Any configured disparity gap (e.g., `neighborhood_accuracy_gap`, `department_pr_auc_gap`) exceeds the allowed threshold.  
+     - This ensures that no new model version can be promoted if it significantly hurts either **accuracy** or **fairness**.
+
+  6. **Publish run artifacts**  
+     - Uploads key artifacts (reports, plots, bias reports) as GitHub Actions run artifacts so they can be inspected directly from the CI run page.
+
+  7. **Email notifications on failure**  
+     - A final job uses an email action to send a detailed **failure notification** whenever the priority model CI run fails.  
+     - The email includes:
+       - A descriptive subject (e.g., “\[boston-311-ai-system\] Priority model CI run – failure”),  
+       - The GitHub Actions run URL, and  
+       - High-level context about the job that failed.  
+     - This ensures the team is alerted immediately and does not have to manually poll CI to discover broken or unfair models.
+
+Overall, this CI/CD setup operationalizes the priority model rubric by:
+- Re-running training and bias analysis in a clean, reproducible Docker environment.
+- Automatically enforcing both **performance** and **fairness** thresholds before promotion.
+- Versioning all promoted models in a GCS model registry.
+- Proactively notifying the team via email whenever the priority model pipeline breaks or a new model fails the gates.
+
 
 ### 3. **AI Chatbot (FastAPI + Gemini)**
 
@@ -279,12 +374,22 @@ boston-311-ai-system/
 │   ├── data/                         # Sample/test data
 │   └── tests/                        # Pipeline tests
 │
-├── ml_prioritization_dashboard/     # ML priority system
-│   ├── models/                       # Trained models
-│   ├── templates/                    # Flask HTML templates
-│   ├── train_priority_xgb.py         # Model training
-│   ├── score_priority_xgb.py         # Scoring script
-│   └── priority_dashboard_app.py     # Flask dashboard
+├── docker/priority_model                             # Documentation
+│   ├── Dockerfile                    # Builds image with all ML deps and app code
+│   ├── run_bias_docker.sh            # Helper script: run training in a container (volumes + env)
+│   ├── run_train_docker.sh           # Helper script: run bias checks in a container
+│
+├── ml_prioritization_dashboard/      # ML priority system (training, scoring, bias, and dashboard)
+│   ├── models/                       # Trained model, reports, plots, SHAP, bias JSONs
+│   ├── templates/                    # Flask HTML templates (ML priority dashboard UI)
+│   ├── train_priority_xgb.py         # End-to-end model training + selection + rollback + registry push
+│   ├── score_priority_xgb.py         # Scores open cases and writes ranks to BQ (cases_ranking_ml)
+│   ├── bias_check.py                 # Slice-based bias analysis (neighborhood/department/reason)
+│   ├── bias_mitigation.py            # Evaluates bias behavior of the bias-mitigated model
+│   ├── feature_sensitivity.py        # SHAP-based feature importance aggregation + plots
+│   ├── plot_experiment_sensitivity.py  # Hyperparameter sensitivity plots (PR-AUC / ROC-AUC)
+│   ├── requirements.txt              # Python dependencies for the ML priority system
+│   └── priority_dashboard_app.py     # Flask ML priority dashboard backed by BQ scores
 │
 ├── docs/                             # Documentation
 │   ├── errors-failure.pdf
@@ -292,6 +397,7 @@ boston-311-ai-system/
 │
 ├── .dvc/                             # DVC configuration
 ├── dvc.yaml                          # DVC pipeline definition
+├── .dockerignore
 ├── .gitignore
 ├── pytest.ini                        # Test configuration
 └── README.md
