@@ -37,9 +37,19 @@ jobs:
           pip install -r ml_prioritization_dashboard/requirements.txt
 
       - name: Write GCP service account key to expected path
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
           mkdir -p secrets
-          printf '%s' "${{ secrets.GCP_SA_KEY }}" > secrets/bq-dashboard-ro.json
+          python - << 'EOF'
+          import os
+          from pathlib import Path
+
+          content = os.environ["GCP_SA_KEY"]
+          path = Path("secrets/bq-dashboard-ro.json")
+          path.write_text(content)
+          print(f"Wrote GCP SA key to {path.resolve()}")
+          EOF
 
       - name: Run model training (includes registry push)
         run: |
@@ -131,5 +141,5 @@ jobs:
             Status: ${{ job.status }}
 
             Run URL:
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }_
 
