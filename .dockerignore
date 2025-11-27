@@ -1,0 +1,11 @@
+.git
+.gitignore
+__pycache__/
+*.pyc
+.mlruns/
+venv/
+.venv/
+.env
+secrets/
+.idea/
+.vscode/
