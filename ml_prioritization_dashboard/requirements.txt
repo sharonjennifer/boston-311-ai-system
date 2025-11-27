@@ -1,0 +1,20 @@
+# Core scientific stack
+numpy
+pandas
+scikit-learn
+joblib
+matplotlib
+
+# Model libraries
+xgboost
+fairlearn
+
+# Google Cloud clients
+google-cloud-bigquery
+google-cloud-storage
+google-cloud-bigquery-storage
+db-dtypes
+pandas-gbq
+
+# Web app (dashboard)
+flask
