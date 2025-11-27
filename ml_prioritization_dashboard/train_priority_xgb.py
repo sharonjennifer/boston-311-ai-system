@@ -72,11 +72,27 @@ def push_model_to_registry(model_dir: Path, metrics: dict) -> None:
     archive_path = model_dir / archive_name
 
     artifact_files = [
+        # core model + metadata
         "priority_model.pkl",
         "model_report.json",
+        "model_report_bias_mitigated.json",
         "feature_columns.json",
+        "priority_xgb_experiments.json",
+
+        # bias analysis
         "bias_report.json",
+        "bias_report_mitigated.json",
+
+        # evaluation visuals
+        "confusion_matrix_test.png",
+        "model_comparison_val_roc_auc.png",
+        "model_comparison_val_pr_auc.png",
+
+        # feature sensitivity / SHAP
+        "feature_importance_shap.json",
+        "feature_importance_shap.png",
     ]
+
 
     print(f"[INFO] Creating model artifact archive {archive_path} ...")
     with tarfile.open(archive_path, "w:gz") as tar:
@@ -151,24 +167,69 @@ num = [
 
 X = df[cat + num]
 
+
+# Bias mitigation: re-weighting by neighborhood, department, reason
+
+# - Compute inverse-frequency weights for each of:
+#     neighborhood, department, reason
+# - Cap each per-dimension weight so it doesn't explode
+# - Multiply them together to get a combined fairness weight
+# - Normalise to mean ~1.0 and clip a global max
+
+MAX_DIM_WEIGHT = 3.0     
+MAX_GLOBAL_WEIGHT = 5.0   # cap final combined weight
+
+neigh_series = X["neighborhood"].fillna("None")
+dept_series = X["department"].fillna("None")
+reason_series = X["reason"].fillna("None")
+
+# neighborhood weights
+neigh_counts = neigh_series.value_counts()
+neigh_raw = neigh_series.map(lambda n: neigh_counts.max() / neigh_counts[n])
+neigh_w = neigh_raw.clip(upper=MAX_DIM_WEIGHT)
+
+# department weights 
+dept_counts = dept_series.value_counts()
+dept_raw = dept_series.map(lambda d: dept_counts.max() / dept_counts[d])
+dept_w = dept_raw.clip(upper=MAX_DIM_WEIGHT)
+
+# reason weights
+reason_counts = reason_series.value_counts()
+reason_raw = reason_series.map(lambda r: reason_counts.max() / reason_counts[r])
+reason_w = reason_raw.clip(upper=MAX_DIM_WEIGHT)
+
+# combine + normalise
+combined_raw = neigh_w * dept_w * reason_w
+
+# normalise so avg weight ~ 1.0
+combined_norm = combined_raw / combined_raw.mean()
+
+# final sample weights (numpy array)
+sample_weight_full = combined_norm.clip(upper=MAX_GLOBAL_WEIGHT).to_numpy()
+
+
+
 # Train / Val / Test split  (60 / 20 / 20)
 # Split off 20% test
-X_train_full, X_test, y_train_full, y_test = train_test_split(
+X_train_full, X_test, y_train_full, y_test, w_train_full, w_test_unused = train_test_split(
     X,
     y,
+    sample_weight_full,
     test_size=0.2,
     random_state=42,
     stratify=y,
 )
 
 # Then split train_full into 60% train, 20% val (0.25 of 80% = 20%)
-X_train, X_val, y_train, y_val = train_test_split(
+X_train, X_val, y_train, y_val, w_train, w_val = train_test_split(
     X_train_full,
     y_train_full,
+    w_train_full,
     test_size=0.25,
     random_state=42,
     stratify=y_train_full,
 )
+
 
 print(
     f"[INFO] Split data: "
@@ -281,7 +342,7 @@ for name, base_model, algo in candidates:
     ])
 
     print(f"[INFO] Training candidate model: {name} ({algo})")
-    pipe.fit(X_train, y_train)
+    pipe.fit(X_train, y_train, clf__sample_weight=w_train)
 
     # Evaluate on validation
     clf = pipe.named_steps["clf"]
@@ -352,8 +413,8 @@ print(
 )
 
 # Retrain best model on Train+Val, evaluate on Test
-print("[INFO] Retraining best model on full train+val data...")
-best_pipe.fit(X_train_full, y_train_full)
+print("[INFO] Retraining best model on full train+val data with neighborhood re-weighting...")
+best_pipe.fit(X_train_full, y_train_full, clf__sample_weight=w_train_full)
 
 clf_best = best_pipe.named_steps["clf"]
 if hasattr(clf_best, "predict_proba"):
@@ -431,6 +492,20 @@ metrics = {
     "label_pos_rate": label_pos_rate,
 }
 
+metrics["bias_mitigation"] = {
+    "enabled": True,
+    "dimensions": ["neighborhood", "department", "reason"],
+    "technique": "inverse_frequency_reweighting",
+    "per_dimension_max_weight": MAX_DIM_WEIGHT,
+    "global_max_weight": MAX_GLOBAL_WEIGHT,
+    "notes": (
+        "Training rows from under-represented neighborhoods, departments, "
+        "and reasons receive higher sample_weight during model fit. "
+        "Weights are inverse-frequency-based, capped per dimension and "
+        "globally normalised to keep training stable."
+    ),
+}
+
 experiments_path = MODEL_DIR / "priority_xgb_experiments.json"
 with open(experiments_path, "w") as f:
     json.dump(all_runs, f, indent=2)
@@ -441,6 +516,9 @@ print(json.dumps(metrics, indent=2))
 joblib.dump(best_pipe, MODEL_DIR / "priority_model.pkl")
 
 with open(MODEL_DIR / "model_report.json", "w") as f:
+    json.dump(metrics, f, indent=2)
+
+with open(MODEL_DIR / "model_report_bias_mitigated.json", "w") as f:
     json.dump(metrics, f, indent=2)
 
 with open(MODEL_DIR / "feature_columns.json", "w") as f:
