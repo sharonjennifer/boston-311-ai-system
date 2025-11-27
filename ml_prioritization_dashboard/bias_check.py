@@ -61,7 +61,7 @@ query = f"""
     dept_pressure_30d
   FROM `{PROJECT}.{DATASET}.{TRAIN_FEATURE_TABLE}`
 """
-df = bq.query(query).to_dataframe()
+df = bq.query(query).to_dataframe(create_bqstorage_client=False)
 if df.empty:
     raise RuntimeError("Training table is empty; nothing to run bias checks on.")
 
