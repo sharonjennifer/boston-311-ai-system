@@ -361,7 +361,7 @@ for name, base_model, algo in candidates:
     val_precision = float(precision_score(y_val, val_pred, zero_division=0))
     val_recall = float(recall_score(y_val, val_pred, zero_division=0))
     val_f1 = float(f1_score(y_val, val_pred, zero_division=0))
-
+    run_ts = datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
     all_runs.append({
     "name": name,
     "algo": algo,
