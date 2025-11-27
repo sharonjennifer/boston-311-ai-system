@@ -5,10 +5,13 @@ on:
     branches: [ main ]
     paths:
       - "ml_prioritization_dashboard/**"
+      - ".github/workflows/ml_priority_ci.yml"
   pull_request:
     branches: [ main ]
     paths:
       - "ml_prioritization_dashboard/**"
+      - ".github/workflows/ml_priority_ci.yml"
+  workflow_dispatch:
 
 jobs:
   train-validate-bias-check:
@@ -33,18 +36,16 @@ jobs:
         run: |
           pip install -r ml_prioritization_dashboard/requirements.txt
 
-     - name: Write GCP service account key to expected path
-       run: |
+      - name: Write GCP service account key to expected path
+        run: |
           mkdir -p secrets
           cat << 'EOF' > secrets/bq-dashboard-ro.json
-          ${{ secrets.GCP_SA_KEY }}
-          EOF
-            shell: bash
+${{ secrets.GCP_SA_KEY }}
+EOF
 
       - name: Run model training (includes registry push)
         run: |
           python ml_prioritization_dashboard/train_priority_xgb.py
-        shell: bash
 
       - name: Validate model metrics against thresholds
         run: |
@@ -78,12 +79,10 @@ jobs:
           if not ok:
               raise SystemExit(1)
           EOF
-        shell: bash
 
       - name: Run bias checks
         run: |
           python ml_prioritization_dashboard/bias_check.py
-        shell: bash
 
       - name: Enforce bias thresholds
         run: |
@@ -98,7 +97,6 @@ jobs:
 
           bias = json.loads(bias_path.read_text())
 
-          # Example: enforce that any *_gap keys are <= 0.20
           ok = True
           gap_keys = [k for k in bias.keys() if k.endswith("_gap")]
           if not gap_keys:
@@ -114,28 +112,19 @@ jobs:
           if not ok:
               raise SystemExit(1)
           EOF
-        shell: bash
 
-      # NEW: email notifications – runs on success or failure
       - name: Send email notification
         if: always()
         uses: dawidd6/action-send-mail@v6
         with:
-          # SMTP server (Gmail example)
           server_address: smtp.gmail.com
           server_port: 465
           secure: true
-
-          # Auth from GitHub Secrets
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-
-          # Email metadata
           subject: "Boston 311 ML CI – ${{ job.status }}"
           from: "Boston311 CI Bot <${{ secrets.MAIL_USERNAME }}>"
           to: "aidevadarshini2002@gmail.com,harishvtcp@gmail.com"
-
-          # Email body
           body: |
             Workflow: ${{ github.workflow }}
             Repository: ${{ github.repository }}
@@ -145,4 +134,22 @@ jobs:
 
             Run URL:
             https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
