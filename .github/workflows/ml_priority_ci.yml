@@ -130,16 +130,9 @@ jobs:
           secure: true
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Boston 311 ML CI – ${{ job.status }}"
+          subject: "Boston 311 ML CI – Status: ${{ job.status }}"
           from: "Boston311 CI Bot <${{ secrets.MAIL_USERNAME }}>"
           to: "aidevadarshini2002@gmail.com,harishvtcp@gmail.com"
           body: |
-            Workflow: ${{ github.workflow }}
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref }}
-            Commit: ${{ github.sha }}
-            Status: ${{ job.status }}
-
-            Run URL:
-            https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }_
-
+            Boston 311 ML Priority CI run finished.
+            Status: ${{ job.status }}.
