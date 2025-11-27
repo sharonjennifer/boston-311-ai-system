@@ -33,12 +33,13 @@ jobs:
         run: |
           pip install -r ml_prioritization_dashboard/requirements.txt
 
-      - name: Write GCP service account key
-        # Store your GCP SA JSON in repo secrets as GCP_SA_KEY
-        run: |
-          echo "${{ secrets.GCP_SA_KEY }}" > $HOME/gcp_sa.json
-          echo "GOOGLE_APPLICATION_CREDENTIALS=$HOME/gcp_sa.json" >> $GITHUB_ENV
-        shell: bash
+     - name: Write GCP service account key to expected path
+       run: |
+          mkdir -p secrets
+          cat << 'EOF' > secrets/bq-dashboard-ro.json
+          ${{ secrets.GCP_SA_KEY }}
+          EOF
+            shell: bash
 
       - name: Run model training (includes registry push)
         run: |
