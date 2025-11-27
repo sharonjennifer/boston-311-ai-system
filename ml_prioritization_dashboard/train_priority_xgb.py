@@ -547,6 +547,61 @@ with open(experiments_path, "w") as f:
 
 print(json.dumps(metrics, indent=2))
 
+# Rollback
+
+baseline_report_path = MODEL_DIR / "model_report.json"
+    baseline_metric_name = "test_pr_auc"
+    new_metric = report.get(baseline_metric_name)
+
+    baseline_metric = None
+    if baseline_report_path.exists():
+        try:
+            with open(baseline_report_path, "r") as f:
+                baseline_report = json.load(f)
+            baseline_metric = baseline_report.get(baseline_metric_name)
+            print(
+                f"[INFO] Baseline {baseline_metric_name} from existing prod model: "
+                f"{baseline_metric:.6f}"
+            )
+        except Exception as e:
+            print(
+                f"[WARN] Could not load baseline model_report.json for rollback: {e}"
+            )
+
+    # Only gate if we have both metrics
+    if baseline_metric is not None and new_metric is not None:
+        diff = new_metric - baseline_metric
+        # Allow small noise;
+        max_allowed_drop = 0.005  
+
+        if diff < -max_allowed_drop:
+            print(
+                "[WARN] New model underperforms baseline "
+                f"({baseline_metric_name}: new={new_metric:.6f}, "
+                f"baseline={baseline_metric:.6f}, delta={diff:.6f})."
+            )
+            print(
+                "[WARN] Rolling back: will NOT overwrite priority_model.pkl / "
+                "model_report.json and will NOT push a new model artifact."
+            )
+
+            # Save candidate report for inspection without promoting it
+            candidate_report_path = MODEL_DIR / "last_candidate_report.json"
+            with open(candidate_report_path, "w") as f:
+                json.dump(report, f, indent=2)
+            print(
+                f"[INFO] Wrote candidate report to {candidate_report_path} "
+                "for offline analysis."
+            )
+
+            # Exit cleanly
+            raise SystemExit(0)
+
+    print(
+        f"[INFO] New model passes rollback gate on {baseline_metric_name} "
+        "(no significant regression detected). Promoting to prod..."
+    )
+
 # Save artifacts
 joblib.dump(best_pipe, MODEL_DIR / "priority_model.pkl")
 
