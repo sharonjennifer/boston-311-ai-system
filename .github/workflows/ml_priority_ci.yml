@@ -32,12 +32,12 @@ jobs:
           pip install -r ml_prioritization_dashboard/requirements.txt
 
       - name: Write BigQuery RO service account key
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
           mkdir -p secrets
           # Write the JSON from the GitHub secret into the file
-          printf '%s' "${BQ_DASHBOARD_RO_JSON}" > secrets/bq-dashboard-ro.json
-        env:
-          BQ_DASHBOARD_RO_JSON: ${{ secrets.BQ_DASHBOARD_RO_JSON }}
+          printf '%s' "${GCP_SA_KEY}" > secrets/bq-dashboard-ro.json
 
       - name: Train & evaluate priority model (with rollback + registry push)
         env:
@@ -148,9 +148,9 @@ jobs:
         with:
           server_address: smtp.gmail.com
           server_port: 587
-          secure: false                      
-          username: ${{ secrets.SMTP_USERNAME }}
-          password: ${{ secrets.SMTP_PASSWORD }}
+          secure: false
+          username: ${{ secrets.MAIL_USERNAME }}
+          password: ${{ secrets.MAIL_PASSWORD }}
           subject: "[boston-311-ai-system] Priority model CI run - ${{ job.status }}"
           to: "aidevadarshini2002@gmail.com, harishvtcp@gmail.com"
           from: "aidevadarshini2002@gmail.com"
