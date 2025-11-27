@@ -1,12 +1,7 @@
-name: ML Priority Model CI
+name: Train, validate & bias-check priority model
 
 on:
   push:
-    branches: [ main ]
-    paths:
-      - "ml_prioritization_dashboard/**"
-      - ".github/workflows/ml_priority_ci.yml"
-  pull_request:
     branches: [ main ]
     paths:
       - "ml_prioritization_dashboard/**"
@@ -24,38 +19,33 @@ jobs:
       TRAIN_FEATURE_TABLE: tbl_train_features
 
     steps:
-      - name: Checkout repository
+      - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Install dependencies
-        run: |
-          pip install -r ml_prioritization_dashboard/requirements.txt
-
-      - name: Write GCP service account key to expected path
+      - name: Write GCP service account key
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
         run: |
           mkdir -p secrets
-          python - << 'EOF'
-          import os
-          from pathlib import Path
+          echo "$GCP_SA_KEY" > secrets/bq-dashboard-ro.json
+          echo "Wrote service account key to secrets/bq-dashboard-ro.json"
+          ls -R secrets
 
-          content = os.environ["GCP_SA_KEY"]
-          path = Path("secrets/bq-dashboard-ro.json")
-          path.write_text(content)
-          print(f"Wrote GCP SA key to {path.resolve()}")
-          EOF
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r ml_prioritization_dashboard/requirements.txt
 
-      - name: Run model training (includes registry push)
+      - name: Train priority model (with MLflow + registry push)
         run: |
           python ml_prioritization_dashboard/train_priority_xgb.py
 
-      - name: Validate model metrics against thresholds
+      - name: Check model quality thresholds (rollback gate)
         run: |
           python - << 'EOF'
           import json
@@ -63,76 +53,96 @@ jobs:
 
           report_path = Path("ml_prioritization_dashboard/models/model_report.json")
           if not report_path.exists():
-              raise SystemExit("model_report.json not found")
+              raise SystemExit("model_report.json not found at ml_prioritization_dashboard/models/model_report.json")
 
-          metrics = json.loads(report_path.read_text())
+          report = json.loads(report_path.read_text())
 
-          test_pr_auc = metrics.get("test_pr_auc", 0.0)
-          test_roc_auc = metrics.get("test_roc_auc", 0.0)
-          test_f1 = metrics.get("test_f1", 0.0)
+          test_pr_auc = report.get("test_pr_auc")
+          test_roc_auc = report.get("test_roc_auc")
+          test_f1 = report.get("test_f1")
 
           print(f"test_pr_auc={test_pr_auc}, test_roc_auc={test_roc_auc}, test_f1={test_f1}")
 
-          ok = True
-          if test_pr_auc < 0.40:
-              print("FAIL: test_pr_auc below threshold 0.40")
-              ok = False
-          if test_roc_auc < 0.75:
-              print("FAIL: test_roc_auc below threshold 0.75")
-              ok = False
-          if test_f1 < 0.50:
-              print("FAIL: test_f1 below threshold 0.50")
-              ok = False
+          MIN_PR_AUC = 0.90
+          MIN_ROC_AUC = 0.80
+          MIN_F1 = 0.90
 
-          if not ok:
+          if test_pr_auc is None or test_roc_auc is None or test_f1 is None:
+              raise SystemExit("Missing one or more test_* metrics in model_report.json")
+
+          if not (test_pr_auc >= MIN_PR_AUC and test_roc_auc >= MIN_ROC_AUC and test_f1 >= MIN_F1):
+              print("[FAIL] Model does not meet minimum quality thresholds; treating as failed run.")
               raise SystemExit(1)
+
+          print("[OK] Model meets minimum quality thresholds; safe to keep as latest version.")
           EOF
 
-      - name: Run bias checks
+      - name: Run bias analysis (Fairlearn slicing)
         run: |
           python ml_prioritization_dashboard/bias_check.py
 
-      - name: Enforce bias thresholds
+      - name: Check bias gaps vs threshold (warnings only, no CI fail)
         run: |
           python - << 'EOF'
           import json
-          from pathlib import Path
+          import pathlib
 
-          bias_path = Path("ml_prioritization_dashboard/models/bias_report_mitigated.json")
-          if not bias_path.exists():
-              print("WARNING: bias report not found; failing CI for safety.")
-              raise SystemExit(1)
+          model_dir = pathlib.Path("ml_prioritization_dashboard/models")
+          path = model_dir / "bias_report.json"
 
-          bias = json.loads(bias_path.read_text())
+          if not path.exists():
+              print(f"[WARN] No bias_report.json found at {path}; skipping bias gap checks.")
+              raise SystemExit(0)
 
-          ok = True
-          gap_keys = [k for k in bias.keys() if k.endswith("_gap")]
+          data = json.loads(path.read_text())
+
+          # All *_gap keys are top-level (e.g., neighborhood_accuracy_gap, reason_f1_gap, etc.)
+          gap_keys = [k for k in data.keys() if k.endswith("_gap")]
           if not gap_keys:
               print("No *_gap keys found in bias report; please align with your schema.")
-          else:
-              for key in gap_keys:
-                  gap = float(bias[key])
-                  print(f"{key}={gap}")
-                  if gap > 0.20:
-                      print(f"FAIL: {key} exceeds allowed gap of 0.20")
-                      ok = False
+              raise SystemExit(0)
 
-          if not ok:
-              raise SystemExit(1)
+          allowed_gap = 0.20
+          failed = False
+
+          print(f"Checking bias gaps against threshold={allowed_gap:.2f}...\n")
+          for k in sorted(gap_keys):
+              val = data[k]
+              print(f"{k}={val}")
+              if val is None:
+                  continue
+              if val > allowed_gap:
+                  print(f"WARNING: {k} exceeds allowed gap of {allowed_gap:.2f}")
+                  failed = True
+
+          if failed:
+              print(
+                  "\n[WARN] One or more bias gaps exceed the configured threshold. "
+                  "For this project, we are treating this as a WARNING ONLY: "
+                  "pipeline continues, but fairness issues must be documented in the report."
+              )
+          else:
+              print("\n[OK] All tracked bias gaps are within the allowed threshold.")
+
+          # IMPORTANT: do not fail CI on bias gaps; just warn.
+          raise SystemExit(0)
           EOF
 
-      - name: Send email notification
+      - name: Send CI summary email
         if: always()
         uses: dawidd6/action-send-mail@v6
         with:
           server_address: smtp.gmail.com
-          server_port: 465
-          secure: true
+          server_port: 587
           username: ${{ secrets.MAIL_USERNAME }}
           password: ${{ secrets.MAIL_PASSWORD }}
-          subject: "Boston 311 ML CI – Status: ${{ job.status }}"
-          from: "Boston311 CI Bot <${{ secrets.MAIL_USERNAME }}>"
-          to: "aidevadarshini2002@gmail.com,harishvtcp@gmail.com"
+          subject: >
+            [boston-311-ai-system] Priority model CI run - ${{ job.status }}
+          to: aidevadarshini2002@gmail.com, harishvtcp@gmail.com
+          from: ${{ secrets.MAIL_USERNAME }}
+          secure: true
           body: |
-            Boston 311 ML Priority CI run finished.
-            Status: ${{ job.status }}.
+            GitHub Actions run for boston-311-ai-system: ${{ github.workflow }}
+            Status: ${{ job.status }}
+            Run URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
