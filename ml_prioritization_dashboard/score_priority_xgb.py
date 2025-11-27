@@ -8,12 +8,12 @@ from google.cloud import bigquery
 import joblib
 
 # BASE_DIR
-BASE_DIR = Path(__file__).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 # PROJECT_ROOT
 PROJECT_ROOT = BASE_DIR.parent
 
-SA_PATH = PROJECT_ROOT / "services" / "prioritization-api" / "secrets" / "bq-dashboard-ro.json"
+SA_PATH = BASE_DIR / "secrets" / "bq-dashboard-ro.json"
 
 if SA_PATH.exists():
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(SA_PATH)

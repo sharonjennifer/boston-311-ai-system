@@ -5,8 +5,8 @@ from flask import Flask, render_template, request
 from google.cloud import bigquery
 import pandas as pd
 
-BASE_DIR = Path(__file__).resolve().parent
-SA_PATH = BASE_DIR.parent / "services" / "prioritization-api" / "secrets" / "bq-dashboard-ro.json"
+BASE_DIR = Path(__file__).resolve().parent.parent
+SA_PATH = BASE_DIR / "secrets" / "bq-dashboard-ro.json"
 
 if SA_PATH.exists():
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(SA_PATH)
