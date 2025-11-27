@@ -35,7 +35,7 @@ Your goal is to extract search terms from the user's natural language query into
 
 Categories to extract:
 - neighborhood: Locations, districts, or areas (e.g., "Southie", "Dorchester").
-- department: City departments or agencies (e.g., "PWD", "Animal Control").
+- subject: City departments or agencies (e.g., "Boston police", "Animal Control").
 - case_status: "Open" or "Closed" only.
 - source: How the request was made (e.g., "App", "Phone", "Citizen Connect").
 - reason: Broad categories (e.g., "Sanitation", "Street Lights", "Trees").
