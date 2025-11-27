@@ -530,3 +530,4 @@ try:
     push_model_to_registry(MODEL_DIR, metrics)
 except Exception as e:
     print(f"[WARN] Failed to push model to registry: {e}")
+    
