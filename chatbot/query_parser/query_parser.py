@@ -88,3 +88,16 @@ class QueryParser:
         except Exception as e:
             logger.error(f"Error during parsing: {e}")
             return {}
+
+parser_instance = None
+
+def get_parser():
+    global parser_instance
+    if parser_instance is None:
+        parser_instance = QueryParser()
+    return parser_instance
+
+
+def parse_query(user_text):
+    parser = get_parser()
+    return parser.parse(user_text)
