@@ -75,13 +75,33 @@ class QueryParser:
                     temperature=0.0
                 )
             )
-            
-            extracted_data = json.loads(response.text)
+
+            raw_text = response.text
+            logger.debug(f"Raw parser response text: {raw_text}")
+
+            extracted_data = json.loads(raw_text)
+
+            # Handle both dict and list-of-dicts
+            if isinstance(extracted_data, list):
+                if len(extracted_data) == 0:
+                    logger.error("Model returned an empty JSON list.")
+                    return {}
+                # Assume first element is the dict we care about
+                first = extracted_data[0]
+                if not isinstance(first, dict):
+                    logger.error(f"Unexpected JSON structure (list but first element is {type(first)}).")
+                    return {}
+                extracted_data = first
+            elif not isinstance(extracted_data, dict):
+                logger.error(f"Unexpected JSON structure: {type(extracted_data)}")
+                return {}
+
+            # Now we are sure extracted_data is a dict
             clean_data = {k: v for k, v in extracted_data.items() if v is not None}
-            
+
             logger.info(f"Extracted entities: {clean_data}")
             return clean_data
-            
+
         except json.JSONDecodeError:
             logger.error("Model did not return valid JSON.")
             return {}
