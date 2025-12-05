@@ -44,15 +44,9 @@ logger.info("Using SQLCoder endpoint: %s", endpoint_path)
 
 
 def generate_sql(question: str, keywords: list) -> str:
-    """
-    Build the SQLCoder-style prompt, send it to the custom Vertex
-    endpoint via raw_predict, and return the generated SQL string.
-    """
-    # 1) Build prompt using your template + schema + hints
     prompt = build_prompt(question, keywords)
     logger.debug("SQL prompt sent to endpoint:\n%s", prompt)
 
-    # 2) Match the request schema your endpoint expects
     request_body = {
         "model": "openapi",
         "prompt": prompt,
@@ -75,10 +69,7 @@ def generate_sql(question: str, keywords: list) -> str:
         resp_json = json.loads(response.data.decode("utf-8"))
         logger.debug("Raw response JSON from endpoint: %s", resp_json)
 
-        # Extract the SQL text from the OpenAI-style response
         sql = resp_json["choices"][0].get("text", "").strip()
-
-        # Clean up any markdown fences if they sneak in
         sql = sql.replace("```sql", "").replace("```", "").strip()
 
         logger.info("Generated SQL: %s", sql)

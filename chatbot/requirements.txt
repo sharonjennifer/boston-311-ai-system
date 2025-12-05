@@ -1,0 +1,13 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+google-cloud-bigquery
+google-cloud-aiplatform
+google-api-core
+google-api-python-client
+googleapis-common-protos
+sentence-transformers
+faiss-cpu
+numpy
+pandas
+vertexai

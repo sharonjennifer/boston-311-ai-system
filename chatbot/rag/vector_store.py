@@ -47,7 +47,6 @@ class AttributeRetriever:
         self.indices = {}
         self.lookups = {} 
         
-        # Check if BOTH files exist
         artifacts_exist = os.path.exists(INDEX_PATH) and os.path.exists(META_PATH)
         
         if not force_rebuild and artifacts_exist:
