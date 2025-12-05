@@ -47,12 +47,11 @@ class AttributeRetriever:
         self.indices = {}
         self.lookups = {} 
         
-        # Check if BOTH files exist
         artifacts_exist = os.path.exists(INDEX_PATH) and os.path.exists(META_PATH)
         
         if not force_rebuild and artifacts_exist:
             logger.info("Artifacts found. Loading existing index from disk...")
-            self._load()
+            self.load()
         else:
             if force_rebuild:
                 logger.info("Force rebuild requested.")
@@ -60,9 +59,9 @@ class AttributeRetriever:
                 logger.info("Artifacts not found. Building new index...")
             
             self.model = SentenceTransformer(self.model_name)
-            self._build_indices()
+            self.build_indices()
 
-    def _build_indices(self):
+    def build_indices(self):
         logger.info(f"Building indices in {DATA_DIR}...")
         os.makedirs(DATA_DIR, exist_ok=True)
         
@@ -98,7 +97,7 @@ class AttributeRetriever:
         except Exception as e:
             logger.error(f"Failed to save artifacts: {e}")
             
-    def _load(self):
+    def load(self):
         try:
             with open(META_PATH, "rb") as f:
                 self.lookups = pickle.load(f)
@@ -113,7 +112,7 @@ class AttributeRetriever:
         except Exception as e:
             logger.error(f"Failed to load artifacts: {e}. Triggering fallback rebuild.")
             self.model = SentenceTransformer(self.model_name)
-            self._build_indices()
+            self.build_indices()
 
     def search(self, column, query, k=1, threshold=0.0):
         if column not in self.indices:
@@ -135,6 +134,47 @@ class AttributeRetriever:
                     "score": round(score, 4)
                 })
         return results
+
+retriever_instance = None
+
+def get_retriever(force_rebuild=False):
+    global retriever_instance
+    if retriever_instance is None or force_rebuild:
+        logger.info("Initializing AttributeRetriever singleton (force_rebuild=%s)", force_rebuild)
+        retriever_instance = AttributeRetriever(force_rebuild=force_rebuild)
+    return retriever_instance
+
+
+def retrieve_keywords(parsed_entities, k = 1, threshold = 0.1):
+    retriever = get_retriever()
+    hints = []
+
+    if not isinstance(parsed_entities, dict):
+        logger.warning("retrieve_keywords expected dict, got %s", type(parsed_entities))
+        return hints
+
+    for col, raw_value in parsed_entities.items():
+        if raw_value is None:
+            continue
+        query_text = str(raw_value)
+        results = retriever.search(column=col, query=query_text, k=k, threshold=threshold)
+        
+        if not results:
+            logger.info(f"No RAG match for column='{col}' and query='{query_text}'")
+            continue
+        best = results[0]["value"]
+
+        if isinstance(best, (int, float)):
+            hint = f"{col}={best}"
+        else:
+            hint = f"{col}='{best}'"
+
+        hints.append(hint)
+        logger.info(f"RAG hint for {col}: {hint} (score={results[0]['score']})")
+
+    return hints
+
+
 
 if __name__ == "__main__":
     retriever = AttributeRetriever(force_rebuild=True)

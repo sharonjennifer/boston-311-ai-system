@@ -75,16 +75,45 @@ class QueryParser:
                     temperature=0.0
                 )
             )
-            
-            extracted_data = json.loads(response.text)
+
+            raw_text = response.text
+            logger.debug(f"Raw parser response text: {raw_text}")
+
+            extracted_data = json.loads(raw_text)
+
+            if isinstance(extracted_data, list):
+                if len(extracted_data) == 0:
+                    logger.error("Model returned an empty JSON list.")
+                    return {}
+                first = extracted_data[0]
+                if not isinstance(first, dict):
+                    logger.error(f"Unexpected JSON structure (list but first element is {type(first)}).")
+                    return {}
+                extracted_data = first
+            elif not isinstance(extracted_data, dict):
+                logger.error(f"Unexpected JSON structure: {type(extracted_data)}")
+                return {}
             clean_data = {k: v for k, v in extracted_data.items() if v is not None}
-            
+
             logger.info(f"Extracted entities: {clean_data}")
             return clean_data
-            
+
         except json.JSONDecodeError:
             logger.error("Model did not return valid JSON.")
             return {}
         except Exception as e:
             logger.error(f"Error during parsing: {e}")
             return {}
+
+parser_instance = None
+
+def get_parser():
+    global parser_instance
+    if parser_instance is None:
+        parser_instance = QueryParser()
+    return parser_instance
+
+
+def parse_query(user_text):
+    parser = get_parser()
+    return parser.parse(user_text)
