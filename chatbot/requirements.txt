@@ -8,6 +8,7 @@ google-api-python-client
 googleapis-common-protos
 sentence-transformers
 faiss-cpu
+db-dtypes
 numpy
 pandas
 vertexai
