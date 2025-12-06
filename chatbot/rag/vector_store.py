@@ -7,6 +7,7 @@ import numpy as np
 
 from pathlib import Path
 from dotenv import load_dotenv
+from huggingface_hub import login
 from sentence_transformers import SentenceTransformer
 
 load_dotenv()
@@ -16,6 +17,17 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger("b311.vector_store")
+
+HF_TOKEN = os.getenv("HF_TOKEN")
+
+if HF_TOKEN:
+    try:
+        login(token=HF_TOKEN)
+        logger.info("Authenticated to Hugging Face with HF_TOKEN.")
+    except Exception as e:
+        logger.warning(f"Failed to login to Hugging Face: {e}")
+else:
+    logger.warning("HF_TOKEN not set; using anonymous Hugging Face access (may be rate-limited).")
 
 CURRENT_FILE_DIR = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_BASE_DIR = os.path.dirname(CURRENT_FILE_DIR)
@@ -119,21 +131,34 @@ class AttributeRetriever:
             logger.warning(f"Attempted search on non-existent column: {column}")
             return []
 
+        index = self.indices[column]
         q_embed = self.model.encode([query])
+        q_embed = np.asarray(q_embed, dtype="float32")
+        q_embed = np.ascontiguousarray(q_embed)
         faiss.normalize_L2(q_embed)
-        
-        D, I = self.indices[column].search(q_embed, k)
-        
+
+        n = q_embed.shape[0]
+        D = np.empty((n, k), dtype="float32")
+        I = np.empty((n, k), dtype="int64")
+
+        logger.info("FAISS search: using 5-arg API (n, x, k, distances, labels)")
+        index.search(n, q_embed, k, D, I)
+
         results = []
         for i, idx in enumerate(I[0]):
             score = float(D[0][i])
             if idx >= 0 and score >= threshold:
                 val = self.lookups[column][idx]
-                results.append({
-                    "value": val,
-                    "score": round(score, 4)
-                })
+                results.append(
+                    {
+                        "value": val,
+                        "score": round(score, 4),
+                    }
+                )
+
         return results
+
+
 
 retriever_instance = None
 
