@@ -374,7 +374,7 @@ boston-311-ai-system/
 │   ├── data/                         # Sample/test data
 │   └── tests/                        # Pipeline tests
 │
-├── docker/priority_model                             # Documentation
+├── docker/priority_model      
 │   ├── Dockerfile                    # Builds image with all ML deps and app code
 │   ├── run_bias_docker.sh            # Helper script: run training in a container (volumes + env)
 │   ├── run_train_docker.sh           # Helper script: run bias checks in a container
