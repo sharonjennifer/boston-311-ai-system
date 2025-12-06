@@ -1,25 +1,24 @@
-import faiss
-import pickle
 import os
 import sys
+import pickle
 import logging
-import numpy as np
-
 from pathlib import Path
+
+import numpy as np
 from dotenv import load_dotenv
 from huggingface_hub import login
 from sentence_transformers import SentenceTransformer
 
 load_dotenv()
+
 logging.basicConfig(
     level=os.getenv("B311_LOG_LEVEL", "INFO"),
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("b311.vector_store")
 
 HF_TOKEN = os.getenv("HF_TOKEN")
-
 if HF_TOKEN:
     try:
         login(token=HF_TOKEN)
@@ -37,16 +36,14 @@ CURRENT_FILE = Path(__file__).resolve()
 PROJECT_ROOT = CURRENT_FILE.parent.parent
 sys.path.append(str(PROJECT_ROOT))
 
-from rag.data_definitions import VALID_VALUES
+from rag.data_definitions import VALID_VALUES  # noqa: E402
 
 if os.path.isabs(DATA_DIR_ENV):
     DATA_DIR = DATA_DIR_ENV
 else:
     DATA_DIR = os.path.join(DEFAULT_BASE_DIR, DATA_DIR_ENV)
 
-INDEX_FILENAME = os.getenv("B311_INDEX_FILENAME", "attributes.faiss")
 META_FILENAME = os.getenv("B311_META_FILENAME", "attributes.pkl")
-INDEX_PATH = os.path.join(DATA_DIR, INDEX_FILENAME)
 META_PATH = os.path.join(DATA_DIR, META_FILENAME)
 
 logger.info(f"Vector Store configured using DATA_DIR: {DATA_DIR}")
@@ -54,29 +51,30 @@ logger.info(f"Vector Store configured using DATA_DIR: {DATA_DIR}")
 
 
 class AttributeRetriever:
+    
     def __init__(self, model_name=None, force_rebuild=False):
         self.model_name = model_name or os.getenv("B311_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-        self.indices = {}
-        self.lookups = {} 
-        
-        artifacts_exist = os.path.exists(INDEX_PATH) and os.path.exists(META_PATH)
-        
+        self.embeddings = {}
+        self.lookups = {}
+
+        artifacts_exist = os.path.exists(META_PATH)
+
         if not force_rebuild and artifacts_exist:
-            logger.info("Artifacts found. Loading existing index from disk...")
+            logger.info("Artifacts found. Loading embeddings from disk...")
             self.load()
         else:
             if force_rebuild:
                 logger.info("Force rebuild requested.")
             else:
-                logger.info("Artifacts not found. Building new index...")
-            
+                logger.info("Artifacts not found. Building new embeddings store...")
+
             self.model = SentenceTransformer(self.model_name)
             self.build_indices()
 
     def build_indices(self):
-        logger.info(f"Building indices in {DATA_DIR}...")
+        logger.info(f"Building embedding matrices in {DATA_DIR}...")
         os.makedirs(DATA_DIR, exist_ok=True)
-        
+
         for col, data in VALID_VALUES.items():
             if isinstance(data, dict):
                 texts = list(data.keys())
@@ -86,81 +84,86 @@ class AttributeRetriever:
                 values = data
 
             logger.debug(f"Embedding {len(texts)} items for column '{col}'...")
-            embeddings = self.model.encode(texts)
-            embeddings = np.array(embeddings).astype("float32")
-            
-            faiss.normalize_L2(embeddings)
-            
-            index = faiss.IndexFlatIP(embeddings.shape[1])
-            index.add(embeddings)
-            
-            self.indices[col] = index
+            embs = self.model.encode(
+                texts,
+                convert_to_numpy=True,
+                normalize_embeddings=True,
+            ).astype("float32")
+
+            self.embeddings[col] = embs
             self.lookups[col] = values
-            logger.info(f"-> Built index for '{col}' with {len(values)} items.")
+            logger.info(f"-> Built embeddings for '{col}' with {len(values)} items.")
 
         try:
             with open(META_PATH, "wb") as f:
-                pickle.dump(self.lookups, f)
-            
-            with open(INDEX_PATH, "wb") as f:
-                pickle.dump(self.indices, f)
-                
-            logger.info(f"Successfully saved index and metadata to {DATA_DIR}")
+                pickle.dump(
+                    {
+                        "embeddings": self.embeddings,
+                        "lookups": self.lookups,
+                        "model_name": self.model_name,
+                    },
+                    f,
+                )
+            logger.info(f"Successfully saved embeddings metadata to {META_PATH}")
         except Exception as e:
             logger.error(f"Failed to save artifacts: {e}")
-            
+
     def load(self):
         try:
             with open(META_PATH, "rb") as f:
-                self.lookups = pickle.load(f)
-            
-            with open(INDEX_PATH, "rb") as f:
-                self.indices = pickle.load(f)
-            
+                data = pickle.load(f)
+
+            self.embeddings = data["embeddings"]
+            self.lookups = data["lookups"]
+            self.model_name = os.getenv("B311_EMBEDDING_MODEL", data.get("model_name", self.model_name))
+
             logger.info("Loading embedding model for query encoding...")
             self.model = SentenceTransformer(self.model_name)
             logger.info("Successfully loaded RAG system from disk.")
-            
         except Exception as e:
             logger.error(f"Failed to load artifacts: {e}. Triggering fallback rebuild.")
             self.model = SentenceTransformer(self.model_name)
             self.build_indices()
 
     def search(self, column, query, k=1, threshold=0.0):
-        if column not in self.indices:
+        if column not in self.embeddings:
             logger.warning(f"Attempted search on non-existent column: {column}")
             return []
 
-        index = self.indices[column]
-        q_embed = self.model.encode([query])
-        q_embed = np.asarray(q_embed, dtype="float32")
-        q_embed = np.ascontiguousarray(q_embed)
-        faiss.normalize_L2(q_embed)
+        mat = self.embeddings[column]
+        values = self.lookups[column]
 
-        n = q_embed.shape[0]
-        D = np.empty((n, k), dtype="float32")
-        I = np.empty((n, k), dtype="int64")
+        q = self.model.encode(
+            [query],
+            convert_to_numpy=True,
+            normalize_embeddings=True,
+        ).astype("float32")[0]
 
-        logger.info("FAISS search: using 5-arg API (n, x, k, distances, labels)")
-        index.search(n, q_embed, k, D, I)
+        scores = mat @ q
+
+        n = scores.shape[0]
+        k = min(k, n)
+        if k <= 0:
+            return []
+
+        top_idx = np.argpartition(-scores, k - 1)[:k]
+        top_idx = top_idx[np.argsort(-scores[top_idx])]
 
         results = []
-        for i, idx in enumerate(I[0]):
-            score = float(D[0][i])
-            if idx >= 0 and score >= threshold:
-                val = self.lookups[column][idx]
+        for idx in top_idx:
+            score = float(scores[idx])
+            if score >= threshold:
                 results.append(
                     {
-                        "value": val,
+                        "value": values[idx],
                         "score": round(score, 4),
                     }
                 )
-
         return results
 
 
-
 retriever_instance = None
+
 
 def get_retriever(force_rebuild=False):
     global retriever_instance
@@ -170,7 +173,7 @@ def get_retriever(force_rebuild=False):
     return retriever_instance
 
 
-def retrieve_keywords(parsed_entities, k = 1, threshold = 0.1):
+def retrieve_keywords(parsed_entities, k=1, threshold=0.1):
     retriever = get_retriever()
     hints = []
 
@@ -183,10 +186,11 @@ def retrieve_keywords(parsed_entities, k = 1, threshold = 0.1):
             continue
         query_text = str(raw_value)
         results = retriever.search(column=col, query=query_text, k=k, threshold=threshold)
-        
+
         if not results:
             logger.info(f"No RAG match for column='{col}' and query='{query_text}'")
             continue
+
         best = results[0]["value"]
 
         if isinstance(best, (int, float)):
@@ -200,7 +204,6 @@ def retrieve_keywords(parsed_entities, k = 1, threshold = 0.1):
     return hints
 
 
-
 if __name__ == "__main__":
     retriever = AttributeRetriever(force_rebuild=True)
     test_queries = {
@@ -209,9 +212,9 @@ if __name__ == "__main__":
         "source": "Citizen report via mobile app",
         "type": "Pothole",
         "subject": "Street Cleaning",
-        "reason": "Noise Disturbance"
+        "reason": "Noise Disturbance",
     }
-    
+
     for col, query in test_queries.items():
         results = retriever.search(col, query, k=3, threshold=0.1)
         print(f"Results for column '{col}' and query '{query}':")
