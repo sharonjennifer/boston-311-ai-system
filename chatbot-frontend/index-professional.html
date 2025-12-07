@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Boston 311 Data Assistant | City of Boston</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --boston-blue: #091f2f;
+      --boston-blue-light: #0c2d44;
+      --boston-red: #dc3545;
+      --boston-gray: #f8f9fa;
+      --boston-border: #dee2e6;
+      --text-primary: #212529;
+      --text-secondary: #6c757d;
+      --white: #ffffff;
+      --success: #28a745;
+      --warning: #ffc107;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      background: #f5f7fa;
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    .city-header {
+      background: var(--boston-blue);
+      color: var(--white);
+      padding: 16px 0;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .city-header-content {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .city-logo-section {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .city-logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--white);
+      text-decoration: none;
+    }
+
+    .city-divider {
+      width: 1px;
+      height: 30px;
+      background: rgba(255,255,255,0.3);
+    }
+
+    .service-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.85rem;
+      padding: 6px 12px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .offline-alert {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      color: #856404;
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .offline-alert.show {
+      display: block;
+    }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      margin-top: 20px;
+    }
+
+    .main-content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--white);
+      border: 1px solid var(--boston-border);
+      border-radius: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--boston-border);
+      background: var(--boston-gray);
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--boston-blue);
+    }
+
+    .card-body {
+      padding: 20px;
+    }
+
+    .intro-section {
+      background: linear-gradient(135deg, #0c2d44 0%, #091f2f 100%);
+      color: var(--white);
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+    }
+
+    .intro-section h1 {
+      margin: 0 0 12px 0;
+      font-size: 1.6rem;
+      font-weight: 700;
+    }
+
+    .intro-section p {
+      margin: 0 0 16px 0;
+      font-size: 1rem;
+      opacity: 0.95;
+    }
+
+    .neighborhood-selector {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      background: var(--boston-gray);
+      border-radius: 4px;
+    }
+
+    .neighborhood-selector label {
+      font-weight: 600;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    .neighborhood-selector select {
+      flex: 1;
+      padding: 8px 12px;
+      border: 1px solid var(--boston-border);
+      border-radius: 4px;
+      font-size: 0.9rem;
+      background: var(--white);
+      cursor: pointer;
+    }
+
+    .neighborhood-selector select:focus {
+      outline: none;
+      border-color: var(--boston-blue);
+      box-shadow: 0 0 0 3px rgba(9,31,47,0.1);
+    }
+
+    .chat-area {
+      min-height: 400px;
+      max-height: 500px;
+      overflow-y: auto;
+      padding: 20px;
+      background: var(--white);
+    }
+
+    .chat-area::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    .chat-area::-webkit-scrollbar-track {
+      background: var(--boston-gray);
+    }
+
+    .chat-area::-webkit-scrollbar-thumb {
+      background: var(--boston-border);
+      border-radius: 4px;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .empty-state-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+      color: var(--boston-blue);
+    }
+
+    .empty-state h3 {
+      margin: 0 0 8px 0;
+      color: var(--boston-blue);
+      font-size: 1.3rem;
+    }
+
+    .empty-state p {
+      color: var(--text-secondary);
+      margin: 0 0 24px 0;
+    }
+
+    .starter-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .starter-button {
+      padding: 16px;
+      background: var(--white);
+      border: 2px solid var(--boston-border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: left;
+    }
+
+    .starter-button:hover {
+      border-color: var(--boston-blue);
+      background: var(--boston-gray);
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    .starter-button-icon {
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .starter-button-text {
+      font-size: 0.9rem;
+      color: var(--text-primary);
+      font-weight: 500;
+    }
+
+    .message-group {
+      margin-bottom: 20px;
+      animation: fadeIn 0.3s ease-in;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-user {
+      background: var(--boston-blue);
+      color: var(--white);
+      padding: 12px 16px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      max-width: 75%;
+      margin-left: auto;
+      font-size: 0.95rem;
+    }
+
+    .message-assistant {
+      background: var(--boston-gray);
+      padding: 16px;
+      border-radius: 8px;
+      border-left: 4px solid var(--boston-blue);
+    }
+
+    .assistant-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--boston-border);
+    }
+
+    .assistant-badge {
+      background: var(--boston-blue);
+      color: var(--white);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stats-display {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+      margin: 16px 0;
+    }
+
+    .stat-box {
+      background: var(--white);
+      border: 2px solid var(--boston-blue);
+      border-radius: 6px;
+      padding: 16px;
+      text-align: center;
+    }
+
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--boston-blue);
+      display: block;
+      line-height: 1;
+    }
+
+    .stat-label {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-top: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .answer-text {
+      font-size: 0.95rem;
+      line-height: 1.7;
+      color: var(--text-primary);
+      white-space: pre-wrap;
+    }
+
+    .technical-section {
+      margin-top: 12px;
+      border-top: 1px solid var(--boston-border);
+      padding-top: 12px;
+    }
+
+    .technical-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: var(--white);
+      border: 1px solid var(--boston-border);
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+    }
+
+    .technical-toggle:hover {
+      background: var(--boston-gray);
+    }
+
+    .technical-content {
+      margin-top: 8px;
+      display: none;
+      background: #f8f9fa;
+      border: 1px solid var(--boston-border);
+      border-radius: 4px;
+      padding: 12px;
+    }
+
+    .technical-content.show {
+      display: block;
+    }
+
+    .sql-display {
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      color: #2d3748;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .progress-section {
+      padding: 16px;
+      background: #e7f3ff;
+      border: 1px solid #b3d9ff;
+      border-radius: 6px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .progress-section.active {
+      display: block;
+    }
+
+    .progress-title {
+      font-weight: 600;
+      color: var(--boston-blue);
+      margin-bottom: 12px;
+      text-align: center;
+    }
+
+    .progress-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .progress-step.active {
+      color: var(--boston-blue);
+      font-weight: 500;
+    }
+
+    .progress-step.complete {
+      color: var(--success);
+    }
+
+    .progress-icon {
+      width: 24px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid var(--boston-border);
+      border-top-color: var(--boston-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .input-section {
+      padding: 20px;
+      background: var(--white);
+      border-top: 1px solid var(--boston-border);
+    }
+
+    .input-label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text-primary);
+    }
+
+    textarea {
+      width: 100%;
+      padding: 12px;
+      border: 2px solid var(--boston-border);
+      border-radius: 6px;
+      font-family: var(--font);
+      font-size: 0.95rem;
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: var(--boston-blue);
+      box-shadow: 0 0 0 3px rgba(9,31,47,0.1);
+    }
+
+    .input-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 12px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .example-tags {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .example-tag {
+      padding: 6px 12px;
+      background: var(--boston-gray);
+      border: 1px solid var(--boston-border);
+      border-radius: 4px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .example-tag:hover {
+      background: var(--boston-blue);
+      color: var(--white);
+      border-color: var(--boston-blue);
+    }
+
+    .btn-primary {
+      padding: 12px 32px;
+      background: var(--boston-blue);
+      color: var(--white);
+      border: none;
+      border-radius: 6px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background: var(--boston-blue-light);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-top: 12px;
+      display: none;
+    }
+
+    .alert.show {
+      display: block;
+    }
+
+    .alert-error {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .info-card {
+      background: var(--white);
+      border: 1px solid var(--boston-border);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    .info-card h3 {
+      margin: 0 0 12px 0;
+      font-size: 1rem;
+      color: var(--boston-blue);
+      font-weight: 600;
+    }
+
+    .info-card p {
+      margin: 0 0 16px 0;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .info-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px;
+      background: var(--boston-gray);
+      border: 1px solid var(--boston-border);
+      border-radius: 4px;
+      color: var(--boston-blue);
+      text-decoration: none;
+      font-size: 0.9rem;
+      font-weight: 500;
+      margin-top: 8px;
+      transition: all 0.2s;
+    }
+
+    .info-link:hover {
+      background: var(--boston-blue);
+      color: var(--white);
+      transform: translateX(4px);
+    }
+
+    .related-question {
+      padding: 10px 12px;
+      background: var(--white);
+      border: 1px solid var(--boston-border);
+      border-left: 3px solid var(--boston-blue);
+      border-radius: 4px;
+      margin-top: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+
+    .related-question:hover {
+      background: var(--boston-gray);
+      border-left-width: 4px;
+    }
+
+    .btn-secondary {
+      width: 100%;
+      padding: 10px;
+      background: var(--white);
+      border: 2px solid var(--boston-red);
+      color: var(--boston-red);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-secondary:hover {
+      background: var(--boston-red);
+      color: var(--white);
+    }
+
+    .data-freshness {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      padding: 8px 12px;
+      background: var(--boston-gray);
+      border-radius: 4px;
+      text-align: center;
+    }
+
+    @media (max-width: 1024px) {
+      .main-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        order: -1;
+      }
+
+      .starter-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .city-header-content {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 12px;
+      }
+
+      .city-divider {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="city-header">
+    <div class="city-header-content">
+      <div class="city-logo-section">
+        <a href="#" class="city-logo">City of Boston</a>
+        <div class="city-divider"></div>
+        <div class="service-title">311 Data Assistant</div>
+      </div>
+      <div class="status-indicator">
+        <span class="status-dot"></span>
+        <span id="connectionStatus">System Online</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="offline-alert" id="offlineAlert">
+      ⚠️ You are currently offline. Showing cached data only.
+    </div>
+
+    <div class="intro-section">
+      <h1>Boston 311 Service Request Data Assistant</h1>
+      <p>Access and analyze Boston's 311 service request data using natural language queries. This tool provides residents and city staff with insights into service requests, case statuses, and neighborhood trends.</p>
+      
+      <div class="neighborhood-selector">
+        <label for="neighborhoodSelect">Filter by Neighborhood:</label>
+        <select id="neighborhoodSelect">
+          <option value="">All Neighborhoods</option>
+          <option value="Allston">Allston</option>
+          <option value="Back Bay">Back Bay</option>
+          <option value="Beacon Hill">Beacon Hill</option>
+          <option value="Brighton">Brighton</option>
+          <option value="Charlestown">Charlestown</option>
+          <option value="Dorchester">Dorchester</option>
+          <option value="East Boston">East Boston</option>
+          <option value="Fenway">Fenway</option>
+          <option value="Hyde Park">Hyde Park</option>
+          <option value="Jamaica Plain">Jamaica Plain</option>
+          <option value="Mattapan">Mattapan</option>
+          <option value="Mission Hill">Mission Hill</option>
+          <option value="North End">North End</option>
+          <option value="Roslindale">Roslindale</option>
+          <option value="Roxbury">Roxbury</option>
+          <option value="South Boston">South Boston</option>
+          <option value="South End">South End</option>
+          <option value="West End">West End</option>
+          <option value="West Roxbury">West Roxbury</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="main-grid">
+      <div class="main-content">
+        <div class="card">
+          <div class="card-header">
+            <h2>Conversation</h2>
+          </div>
+          <div class="chat-area" id="chatArea">
+            <div class="empty-state">
+              <div class="empty-state-icon">📊</div>
+              <h3>Welcome to the Boston 311 Data Assistant</h3>
+              <p>Ask questions about service requests, case statuses, or neighborhood trends in plain English.</p>
+              
+              <div class="starter-grid">
+                <button class="starter-button" data-question="How many open cases are there in Dorchester?">
+                  <span class="starter-button-icon">🏘️</span>
+                  <span class="starter-button-text">Open cases by neighborhood</span>
+                </button>
+                <button class="starter-button" data-question="What are the most common service request types?">
+                  <span class="starter-button-icon">📋</span>
+                  <span class="starter-button-text">Common request types</span>
+                </button>
+                <button class="starter-button" data-question="How many pothole requests were made this month?">
+                  <span class="starter-button-icon">🚧</span>
+                  <span class="starter-button-text">Infrastructure requests</span>
+                </button>
+                <button class="starter-button" data-question="Show me sanitation cases in the past week">
+                  <span class="starter-button-icon">🗑️</span>
+                  <span class="starter-button-text">Sanitation services</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="progress-section" id="progressSection">
+            <div class="progress-title">Processing your request...</div>
+            <div class="progress-step" id="step1">
+              <div class="progress-icon">⏳</div>
+              <span>Analyzing query</span>
+            </div>
+            <div class="progress-step" id="step2">
+              <div class="progress-icon">🔍</div>
+              <span>Searching database</span>
+            </div>
+            <div class="progress-step" id="step3">
+              <div class="progress-icon">📊</div>
+              <span>Processing results</span>
+            </div>
+            <div class="progress-step" id="step4">
+              <div class="progress-icon">✅</div>
+              <span>Generating response</span>
+            </div>
+          </div>
+
+          <div class="input-section">
+            <label class="input-label" for="questionInput">Ask a Question</label>
+            <textarea 
+              id="questionInput" 
+              placeholder="Example: How many open pothole requests are there in Roxbury?"
+            ></textarea>
+
+            <div class="input-footer">
+              <div class="example-tags">
+                <span class="example-tag" data-hint="How many">How many...</span>
+                <span class="example-tag" data-hint="Show me">Show me...</span>
+                <span class="example-tag" data-hint="What are">What are...</span>
+              </div>
+              <button class="btn-primary" id="submitBtn">
+                <span id="btnText">Submit Query</span>
+              </button>
+            </div>
+
+            <div class="alert alert-error" id="errorAlert"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="info-card">
+          <h3>Data Information</h3>
+          <div class="data-freshness" id="dataFreshness">
+            Last updated: 2 hours ago
+          </div>
+          <p style="margin-top: 12px;">Data is sourced from the Boston 311 database and updated regularly to ensure accuracy.</p>
+        </div>
+
+        <div class="info-card">
+          <h3>Helpful Context</h3>
+          <p id="contextInfo">Ask questions about service requests, case statuses, request types, or trends by neighborhood or time period.</p>
+        </div>
+
+        <div class="info-card">
+          <h3>Resources</h3>
+          <a href="tel:311" class="info-link">
+            <span>📞</span>
+            <span>Call Boston 311</span>
+          </a>
+          <a href="https://www.boston.gov/departments/311" target="_blank" class="info-link">
+            <span>🌐</span>
+            <span>Visit Boston.gov/311</span>
+          </a>
+          <a href="https://www.boston.gov/departments/311/report-issue-boston-311" target="_blank" class="info-link">
+            <span>📝</span>
+            <span>Report an Issue</span>
+          </a>
+        </div>
+
+        <div class="info-card" id="relatedCard" style="display: none;">
+          <h3>Related Questions</h3>
+          <div id="relatedQuestions"></div>
+        </div>
+
+        <div class="info-card">
+          <button class="btn-secondary" id="clearBtn">Clear Conversation</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="hidden" id="backendUrl" value="https://b311-chatbot-backend-763245636613.us-central1.run.app" />
+
+  <script>
+    const backendUrlInput = document.getElementById("backendUrl");
+    const questionInput = document.getElementById("questionInput");
+    const submitBtn = document.getElementById("submitBtn");
+    const btnText = document.getElementById("btnText");
+    const clearBtn = document.getElementById("clearBtn");
+    const chatArea = document.getElementById("chatArea");
+    const errorAlert = document.getElementById("errorAlert");
+    const progressSection = document.getElementById("progressSection");
+    const neighborhoodSelect = document.getElementById("neighborhoodSelect");
+    const contextInfo = document.getElementById("contextInfo");
+    const relatedCard = document.getElementById("relatedCard");
+    const relatedQuestions = document.getElementById("relatedQuestions");
+    const offlineAlert = document.getElementById("offlineAlert");
+    const connectionStatus = document.getElementById("connectionStatus");
+
+    let conversationHistory = [];
+    let savedNeighborhood = "";
+    let isOnline = navigator.onLine;
+
+    const contextualInfo = {
+      'open': "Open cases are service requests currently being processed by city departments.",
+      'pothole': "Pothole repairs are typically completed within 3-5 business days of being reported.",
+      'trash': "Sanitation services follow scheduled routes that vary by neighborhood.",
+      'parking': "Parking enforcement data includes violations, tickets, and towing records.",
+      'default': "This tool provides access to Boston's 311 service request database for analysis and insights."
+    };
+
+    const relatedQuestionsMap = {
+      'open': [
+        "Which departments have the most open cases?",
+        "What is the average resolution time?"
+      ],
+      'pothole': [
+        "Which streets have the most pothole reports?",
+        "How many potholes were repaired last month?"
+      ],
+      'trash': [
+        "What are the most common sanitation complaints?",
+        "Which neighborhoods report the most issues?"
+      ],
+      'default': [
+        "What is the most common request type?",
+        "Which neighborhood has the highest volume?"
+      ]
+    };
+
+    window.addEventListener('online', () => {
+      isOnline = true;
+      offlineAlert.classList.remove('show');
+      connectionStatus.textContent = 'System Online';
+    });
+
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      offlineAlert.classList.add('show');
+      connectionStatus.textContent = 'Offline Mode';
+    });
+
+    if (!isOnline) {
+      offlineAlert.classList.add('show');
+      connectionStatus.textContent = 'Offline Mode';
+    }
+
+    function loadNeighborhood() {
+      savedNeighborhood = localStorage.getItem('boston311_neighborhood') || '';
+      if (savedNeighborhood) {
+        neighborhoodSelect.value = savedNeighborhood;
+      }
+    }
+
+    neighborhoodSelect.addEventListener('change', (e) => {
+      savedNeighborhood = e.target.value;
+      localStorage.setItem('boston311_neighborhood', savedNeighborhood);
+      
+      if (savedNeighborhood) {
+        contextInfo.textContent = `Currently filtering results for ${savedNeighborhood}. Questions will automatically include this neighborhood context.`;
+      } else {
+        contextInfo.textContent = "Ask questions about service requests, case statuses, request types, or trends by neighborhood or time period.";
+      }
+    });
+
+    function loadConversation() {
+      const saved = localStorage.getItem('boston311_chat_history');
+      if (saved) {
+        conversationHistory = JSON.parse(saved);
+        renderConversation();
+      }
+    }
+
+    function saveConversation() {
+      localStorage.setItem('boston311_chat_history', JSON.stringify(conversationHistory));
+    }
+
+    clearBtn.addEventListener('click', () => {
+      if (confirm('Clear all conversation history?')) {
+        conversationHistory = [];
+        saveConversation();
+        renderConversation();
+        relatedCard.style.display = 'none';
+      }
+    });
+
+    function updateSidebar(question) {
+      const questionLower = question.toLowerCase();
+      let info = contextualInfo.default;
+      let related = relatedQuestionsMap.default;
+
+      for (let key in contextualInfo) {
+        if (questionLower.includes(key)) {
+          info = contextualInfo[key];
+          related = relatedQuestionsMap[key] || relatedQuestionsMap.default;
+          break;
+        }
+      }
+
+      contextInfo.textContent = info;
+      
+      relatedQuestions.innerHTML = related.map(q => 
+        `<div class="related-question" onclick="askRelated('${escapeForAttribute(q)}')">${q}</div>`
+      ).join('');
+      relatedCard.style.display = 'block';
+    }
+
+    function detectNumbersInData(data) {
+      if (!data || data.length === 0) return null;
+      
+      if (data.length === 1) {
+        const keys = Object.keys(data[0]);
+        if (keys.length === 1) {
+          const value = data[0][keys[0]];
+          if (!isNaN(value)) {
+            return [{
+              number: value,
+              label: keys[0].replace(/_/g, ' ')
+            }];
+          }
+        }
+      }
+      
+      if (data.length <= 5) {
+        const stats = [];
+        data.forEach(row => {
+          const keys = Object.keys(row);
+          if (keys.length === 2) {
+            const labelKey = keys.find(k => isNaN(row[k]));
+            const valueKey = keys.find(k => !isNaN(row[k]));
+            if (labelKey && valueKey) {
+              stats.push({
+                number: row[valueKey],
+                label: row[labelKey]
+              });
+            }
+          }
+        });
+        if (stats.length > 0) return stats;
+      }
+      
+      return null;
+    }
+
+    function renderConversation() {
+      if (conversationHistory.length === 0) {
+        chatArea.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📊</div>
+            <h3>Welcome to the Boston 311 Data Assistant</h3>
+            <p>Ask questions about service requests, case statuses, or neighborhood trends in plain English.</p>
+            
+            <div class="starter-grid">
+              <button class="starter-button" data-question="How many open cases are there in Dorchester?">
+                <span class="starter-button-icon">🏘️</span>
+                <span class="starter-button-text">Open cases by neighborhood</span>
+              </button>
+              <button class="starter-button" data-question="What are the most common service request types?">
+                <span class="starter-button-icon">📋</span>
+                <span class="starter-button-text">Common request types</span>
+              </button>
+              <button class="starter-button" data-question="How many pothole requests were made this month?">
+                <span class="starter-button-icon">🚧</span>
+                <span class="starter-button-text">Infrastructure requests</span>
+              </button>
+              <button class="starter-button" data-question="Show me sanitation cases in the past week">
+                <span class="starter-button-icon">🗑️</span>
+                <span class="starter-button-text">Sanitation services</span>
+              </button>
+            </div>
+          </div>
+        `;
+        
+        document.querySelectorAll('.starter-button').forEach(btn => {
+          btn.addEventListener('click', () => {
+            questionInput.value = btn.dataset.question;
+            questionInput.focus();
+          });
+        });
+        return;
+      }
+
+      chatArea.innerHTML = conversationHistory.map((item, idx) => {
+        const stats = detectNumbersInData(item.data);
+        
+        return `
+          <div class="message-group">
+            <div class="message-user">${escapeHtml(item.question)}</div>
+            
+            <div class="message-assistant">
+              <div class="assistant-header">
+                <span class="assistant-badge">Boston 311 System</span>
+              </div>
+              
+              ${stats ? `
+                <div class="stats-display">
+                  ${stats.map(stat => `
+                    <div class="stat-box">
+                      <span class="stat-number">${stat.number.toLocaleString()}</span>
+                      <span class="stat-label">${stat.label}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              
+              <div class="answer-text">${escapeHtml(item.answer)}</div>
+              
+              <div class="technical-section">
+                <div class="technical-toggle" onclick="toggleTechnical(${idx})">
+                  <span>View Query Details</span>
+                  <span id="toggle-icon-${idx}">▼</span>
+                </div>
+                <div class="technical-content" id="technical-${idx}">
+                  <div class="sql-display">${escapeHtml(item.sql)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    window.toggleTechnical = function(idx) {
+      const content = document.getElementById(`technical-${idx}`);
+      const icon = document.getElementById(`toggle-icon-${idx}`);
+      content.classList.toggle('show');
+      icon.textContent = content.classList.contains('show') ? '▲' : '▼';
+    };
+
+    window.askRelated = function(question) {
+      question = question.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, '\n');
+      questionInput.value = question;
+      questionInput.focus();
+      submitBtn.click();
+    };
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function escapeForAttribute(text) {
+      return text.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+    }
+
+    function setError(message) {
+      if (!message) {
+        errorAlert.classList.remove('show');
+        errorAlert.textContent = "";
+      } else {
+        errorAlert.classList.add('show');
+        errorAlert.textContent = message;
+      }
+    }
+
+    function simulateProgress() {
+      progressSection.classList.add('active');
+      
+      const steps = [
+        { id: 'step1', delay: 0 },
+        { id: 'step2', delay: 800 },
+        { id: 'step3', delay: 2000 },
+        { id: 'step4', delay: 3500 }
+      ];
+
+      steps.forEach(({ id, delay }) => {
+        setTimeout(() => {
+          if (progressSection.classList.contains('active')) {
+            const step = document.getElementById(id);
+            step.classList.add('active');
+            step.querySelector('.progress-icon').innerHTML = '<div class="spinner"></div>';
+          }
+        }, delay);
+      });
+    }
+
+    function completeProgress() {
+      const allSteps = ['step1', 'step2', 'step3', 'step4'];
+      allSteps.forEach(id => {
+        const step = document.getElementById(id);
+        step.classList.remove('active');
+        step.classList.add('complete');
+        step.querySelector('.progress-icon').textContent = '✓';
+      });
+
+      setTimeout(() => {
+        progressSection.classList.remove('active');
+        allSteps.forEach(id => {
+          const step = document.getElementById(id);
+          step.classList.remove('complete');
+          const icons = ['⏳', '🔍', '📊', '✅'];
+          step.querySelector('.progress-icon').textContent = icons[parseInt(id.replace('step', '')) - 1];
+        });
+      }, 1500);
+    }
+
+    function setLoading(isLoading) {
+      submitBtn.disabled = isLoading;
+      btnText.textContent = isLoading ? "Processing..." : "Submit Query";
+      
+      if (isLoading) {
+        simulateProgress();
+      }
+    }
+
+    submitBtn.addEventListener("click", async () => {
+      const baseUrl = backendUrlInput.value.trim().replace(/\/+$/, "");
+      const url = `${baseUrl}/chat`;
+      let question = questionInput.value.trim();
+
+      setError("");
+
+      if (!question) {
+        setError("Please enter a question.");
+        return;
+      }
+
+      if (savedNeighborhood && !question.toLowerCase().includes(savedNeighborhood.toLowerCase())) {
+        question = `${question} (in ${savedNeighborhood})`;
+      }
+
+      if (!isOnline) {
+        setError("You are offline. Showing cached data only.");
+        renderConversation();
+        return;
+      }
+
+      updateSidebar(question);
+      setLoading(true);
+
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({ question })
+        });
+
+        if (!resp.ok) {
+          throw new Error("Unable to connect to the server. Please try again.");
+        }
+
+        const data = await resp.json();
+
+        conversationHistory.push({
+          question: questionInput.value.trim(),
+          answer: data.answer ?? "No results found for your query.",
+          sql: data.sql ?? "-- Query not available",
+          data: data.data ?? [],
+          timestamp: new Date().toISOString()
+        });
+
+        saveConversation();
+        renderConversation();
+        completeProgress();
+        
+        questionInput.value = "";
+        setError("");
+      } catch (err) {
+        console.error(err);
+        setError(err.message || "An error occurred. Please try again or contact support.");
+        progressSection.classList.remove('active');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    questionInput.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        submitBtn.click();
+      }
+    });
+
+    document.querySelectorAll(".example-tag").forEach(tag => {
+      tag.addEventListener("click", () => {
+        questionInput.value = tag.dataset.hint + " ";
+        questionInput.focus();
+      });
+    });
+
+    loadNeighborhood();
+    loadConversation();
+  </script>
+</body>
+</html>
