@@ -1,15 +1,27 @@
 from fastapi import FastAPI
-from app.schemas import ChatRequest, ChatResponse
+from fastapi.middleware.cors import CORSMiddleware
 from app.pipeline import run_pipeline
-from query_parser.query_parser import get_parser
-from rag.vector_store import get_retriever
+from app.schemas import ChatRequest, ChatResponse
 
-app = FastAPI(title="Boston 311 Chatbot Backend")
+app = FastAPI(
+    title="Boston 311 SQL Chatbot",
+    version="1.0.0",
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.on_event("startup")
-async def startup_event():
-    get_parser()
-    get_retriever()
+def startup_event():
+    from rag.vector_store import get_retriever
+    get_retriever(force_rebuild=False)
+
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
