@@ -1,3 +1,6 @@
+"""
+Enhanced Pipeline with Intelligent Routing
+"""
 import os
 import sys
 import logging
@@ -19,6 +22,7 @@ from app.config import settings
 
 from typing import Tuple, List, Dict, Optional
 from app.conversation_manager import get_conversation_manager
+from app.routers import route_question, handle_procedural_question
 
 load_dotenv()
 
@@ -35,6 +39,15 @@ bq = bigquery.Client(project=settings.PROJECT_ID)
 
 
 def run_pipeline(question: str, session_id: Optional[str] = None):
+    """
+    Enhanced pipeline with intelligent routing
+    
+    Flow:
+    1. Route question (topic relevance + query type)
+    2. If off-topic: return polite message
+    3. If procedural: return FAQ answer
+    4. If data query: proceed with SQL generation
+    """
     sql_query = None
     records = []
     
@@ -45,6 +58,36 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
     context = ""
     if session_id:
         context = conv_manager.get_context(session_id, num_turns=2)
+    
+    # ========================================================================
+    # ROUTING LAYER
+    # ========================================================================
+    route_type, route_metadata = route_question(question)
+    
+    # Handle OFF-TOPIC questions
+    if route_type == "off_topic":
+        off_topic_message = route_metadata.get("message", 
+            "I can only help with Boston 311 service requests.")
+        
+        if session_id:
+            conv_manager.add_turn(session_id, question, off_topic_message, None, None)
+        
+        return off_topic_message, None, []
+    
+    # Handle PROCEDURAL questions (FAQ)
+    if route_type == "procedural":
+        logger.info("[Pipeline] Routing to FAQ handler")
+        procedural_answer = handle_procedural_question(question)
+        
+        if session_id:
+            conv_manager.add_turn(session_id, question, procedural_answer, None, None)
+        
+        return procedural_answer, None, []
+    
+    # ========================================================================
+    # DATA QUERY PIPELINE (existing logic)
+    # ========================================================================
+    logger.info("[Pipeline] Routing to data query pipeline")
 
     # 1. Parse user question with context
     try:
@@ -52,12 +95,15 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         logger.info("Parsed output %s", parsed)
     except Exception as e:
         logger.exception("Query parsing failed")
-        return (
+        error_msg = (
             "Sorry, I couldn't understand that question well enough to build a query. "
-            "Try rephrasing it or asking something a bit simpler.",
-            None,
-            [],
+            "Try rephrasing it or asking something a bit simpler."
         )
+        
+        if session_id:
+            conv_manager.add_turn(session_id, question, error_msg, None, None)
+        
+        return error_msg, None, []
 
     # 2. Retrieve RAG keywords (non-fatal if it fails)
     try:
@@ -76,12 +122,15 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
             raise ValueError("Empty SQL from generate_sql")
     except Exception as e:
         logger.exception("SQL generation failed")
-        return (
+        error_msg = (
             "I couldn't generate a valid SQL query for that question. "
-            "You can try rephrasing, or narrowing down things like date range or neighborhood.",
-            None,
-            [],
+            "You can try rephrasing, or narrowing down things like date range or neighborhood."
         )
+        
+        if session_id:
+            conv_manager.add_turn(session_id, question, error_msg, None, None)
+        
+        return error_msg, None, []
 
     # 4. Run SQL on BigQuery
     try:
@@ -89,12 +138,15 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         logger.info("BigQuery output %s", df)
     except Exception as e:
         logger.exception("BigQuery execution failed")
-        return (
+        error_msg = (
             "I tried to run the query in BigQuery, but something went wrong on the data side. "
-            "Please try again in a moment or ask a simpler question.",
-            sql_query,
-            [],
+            "Please try again in a moment or ask a simpler question."
         )
+        
+        if session_id:
+            conv_manager.add_turn(session_id, question, error_msg, sql_query, None)
+        
+        return error_msg, sql_query, []
 
     # Convert to JSON-serializable format
     records = json.loads(df.to_json(orient="records"))
@@ -102,11 +154,14 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
     # 4a. Explicit "no data found" case
     if not records:
         logger.info("BigQuery returned 0 rows.")
-        return (
-            "I ran the query, but there were no matching results for your question.",
-            sql_query,
-            [],
+        no_data_msg = (
+            "I ran the query, but there were no matching results for your question."
         )
+        
+        if session_id:
+            conv_manager.add_turn(session_id, question, no_data_msg, sql_query, records)
+        
+        return no_data_msg, sql_query, []
 
     # 5. Turn results into a natural-language answer (Gemini)
     try:
