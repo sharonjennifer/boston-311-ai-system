@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Boston 311 Helper</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --primary-blue: #2563eb;
+      --primary-blue-dark: #1e40af;
+      --accent-green: #10b981;
+      --bg-light: #f9fafb;
+      --bg-white: #ffffff;
+      --text-dark: #111827;
+      --text-medium: #4b5563;
+      --text-light: #6b7280;
+      --border-light: #e5e7eb;
+      --border-medium: #d1d5db;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --error: #ef4444;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      background: linear-gradient(to bottom, #eff6ff 0%, #f9fafb 100%);
+      color: var(--text-dark);
+      line-height: 1.6;
+    }
+
+    .top-bar {
+      background: var(--bg-white);
+      border-bottom: 2px solid var(--primary-blue);
+      padding: 16px 0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .top-bar-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .logo-section {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      font-size: 1.8rem;
+    }
+
+    .logo-text {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: var(--primary-blue);
+    }
+
+    .tagline {
+      font-size: 0.9rem;
+      color: var(--text-medium);
+    }
+
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: #065f46;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 32px 24px;
+    }
+
+    .offline-notice {
+      background: #fef3c7;
+      border: 2px solid var(--warning);
+      border-radius: 12px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      display: none;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .offline-notice.show {
+      display: flex;
+    }
+
+    .hero-section {
+      background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+      color: white;
+      padding: 40px;
+      border-radius: 16px;
+      margin-bottom: 32px;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+    }
+
+    .hero-section h1 {
+      margin: 0 0 12px 0;
+      font-size: 2rem;
+      font-weight: 700;
+    }
+
+    .hero-section p {
+      margin: 0 0 24px 0;
+      font-size: 1.1rem;
+      opacity: 0.95;
+    }
+
+    .neighborhood-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 20px;
+      background: rgba(255,255,255,0.15);
+      border-radius: 12px;
+      backdrop-filter: blur(10px);
+    }
+
+    .neighborhood-bar label {
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .neighborhood-bar select {
+      flex: 1;
+      padding: 10px 14px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-radius: 8px;
+      background: white;
+      color: var(--text-dark);
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+    }
+
+    .neighborhood-bar select:focus {
+      outline: none;
+      border-color: white;
+      box-shadow: 0 0 0 3px rgba(255,255,255,0.3);
+    }
+
+    .main-layout {
+      display: grid;
+      grid-template-columns: 1fr 320px;
+      gap: 24px;
+    }
+
+    .chat-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .card {
+      background: var(--bg-white);
+      border-radius: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      overflow: hidden;
+    }
+
+    .card-header {
+      padding: 20px 24px;
+      border-bottom: 2px solid var(--border-light);
+      background: var(--bg-light);
+    }
+
+    .card-header h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .card-body {
+      padding: 24px;
+    }
+
+    .chat-container {
+      min-height: 400px;
+      max-height: 500px;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    .chat-container::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    .chat-container::-webkit-scrollbar-track {
+      background: var(--bg-light);
+      border-radius: 5px;
+    }
+
+    .chat-container::-webkit-scrollbar-thumb {
+      background: var(--border-medium);
+      border-radius: 5px;
+    }
+
+    .chat-container::-webkit-scrollbar-thumb:hover {
+      background: var(--text-light);
+    }
+
+    .welcome-screen {
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .welcome-icon {
+      font-size: 4rem;
+      margin-bottom: 20px;
+    }
+
+    .welcome-screen h3 {
+      margin: 0 0 12px 0;
+      font-size: 1.5rem;
+      color: var(--text-dark);
+      font-weight: 700;
+    }
+
+    .welcome-screen p {
+      color: var(--text-medium);
+      margin: 0 0 32px 0;
+      font-size: 1rem;
+    }
+
+    .quick-questions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    .quick-question-card {
+      padding: 20px;
+      background: var(--bg-light);
+      border: 2px solid var(--border-light);
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-align: left;
+    }
+
+    .quick-question-card:hover {
+      border-color: var(--primary-blue);
+      background: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(37,99,235,0.15);
+    }
+
+    .quick-question-icon {
+      font-size: 2rem;
+      margin-bottom: 12px;
+      display: block;
+    }
+
+    .quick-question-text {
+      font-size: 0.95rem;
+      color: var(--text-dark);
+      font-weight: 600;
+      line-height: 1.4;
+    }
+
+    .conversation {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .message-bubble {
+      animation: slideUp 0.3s ease-out;
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .user-message {
+      background: var(--primary-blue);
+      color: white;
+      padding: 14px 18px;
+      border-radius: 18px;
+      max-width: 75%;
+      margin-left: auto;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+
+    .bot-message {
+      background: var(--bg-light);
+      padding: 20px;
+      border-radius: 18px;
+      border: 2px solid var(--border-light);
+      max-width: 85%;
+    }
+
+    .bot-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid var(--border-light);
+    }
+
+    .bot-icon {
+      font-size: 1.8rem;
+    }
+
+    .bot-label {
+      font-weight: 700;
+      color: var(--primary-blue);
+      font-size: 0.95rem;
+    }
+
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 16px;
+      margin: 16px 0;
+    }
+
+    .stat-item {
+      background: white;
+      border: 3px solid var(--primary-blue);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 800;
+      color: var(--primary-blue);
+      display: block;
+      line-height: 1;
+    }
+
+    .stat-name {
+      font-size: 0.85rem;
+      color: var(--text-medium);
+      margin-top: 8px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .answer-content {
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--text-dark);
+      white-space: pre-wrap;
+    }
+
+    .tech-details {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 2px solid var(--border-light);
+    }
+
+    .tech-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 14px;
+      background: white;
+      border: 2px solid var(--border-light);
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      color: var(--text-medium);
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+
+    .tech-toggle:hover {
+      border-color: var(--primary-blue);
+      color: var(--primary-blue);
+    }
+
+    .tech-panel {
+      margin-top: 12px;
+      display: none;
+      background: #f8fafc;
+      border: 2px solid var(--border-light);
+      border-radius: 8px;
+      padding: 16px;
+    }
+
+    .tech-panel.show {
+      display: block;
+    }
+
+    .sql-code {
+      font-family: "SF Mono", Monaco, "Courier New", monospace;
+      font-size: 0.9rem;
+      color: #334155;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .loading-box {
+      padding: 20px;
+      background: #dbeafe;
+      border: 2px solid #93c5fd;
+      border-radius: 12px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .loading-box.show {
+      display: block;
+    }
+
+    .loading-title {
+      font-weight: 700;
+      color: var(--primary-blue);
+      margin-bottom: 16px;
+      text-align: center;
+      font-size: 1rem;
+    }
+
+    .loading-step {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 0;
+      color: var(--text-medium);
+      font-size: 0.95rem;
+    }
+
+    .loading-step.active {
+      color: var(--primary-blue);
+      font-weight: 600;
+    }
+
+    .loading-step.done {
+      color: var(--success);
+    }
+
+    .step-marker {
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+    }
+
+    .spinner {
+      width: 18px;
+      height: 18px;
+      border: 3px solid var(--border-light);
+      border-top-color: var(--primary-blue);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .input-area {
+      padding: 24px;
+      background: white;
+    }
+
+    .input-label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 10px;
+      color: var(--text-dark);
+      font-size: 1rem;
+    }
+
+    .question-input {
+      width: 100%;
+      padding: 14px 18px;
+      border: 3px solid var(--border-medium);
+      border-radius: 12px;
+      font-family: var(--font);
+      font-size: 1rem;
+      resize: vertical;
+      min-height: 100px;
+      transition: all 0.2s;
+    }
+
+    .question-input:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+      box-shadow: 0 0 0 4px rgba(37,99,235,0.1);
+    }
+
+    .input-actions {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 16px;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .hint-chips {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 1;
+    }
+
+    .hint-chip {
+      padding: 8px 16px;
+      background: var(--bg-light);
+      border: 2px solid var(--border-light);
+      border-radius: 20px;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+      color: var(--text-medium);
+    }
+
+    .hint-chip:hover {
+      background: var(--primary-blue);
+      color: white;
+      border-color: var(--primary-blue);
+      transform: translateY(-1px);
+    }
+
+    .submit-button {
+      padding: 14px 32px;
+      background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-blue-dark) 100%);
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 4px 6px rgba(37,99,235,0.3);
+    }
+
+    .submit-button:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 12px rgba(37,99,235,0.4);
+    }
+
+    .submit-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .error-message {
+      margin-top: 16px;
+      padding: 14px 18px;
+      background: #fee2e2;
+      border: 2px solid var(--error);
+      border-radius: 10px;
+      color: #991b1b;
+      display: none;
+      font-weight: 500;
+    }
+
+    .error-message.show {
+      display: block;
+    }
+
+    .sidebar {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .side-card {
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .side-card h3 {
+      margin: 0 0 16px 0;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--text-dark);
+    }
+
+    .side-card p {
+      margin: 0 0 16px 0;
+      font-size: 0.95rem;
+      color: var(--text-medium);
+      line-height: 1.6;
+    }
+
+    .resource-link {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 16px;
+      background: var(--bg-light);
+      border: 2px solid var(--border-light);
+      border-radius: 10px;
+      color: var(--primary-blue);
+      text-decoration: none;
+      font-size: 0.95rem;
+      font-weight: 600;
+      margin-top: 10px;
+      transition: all 0.2s;
+    }
+
+    .resource-link:hover {
+      background: var(--primary-blue);
+      color: white;
+      border-color: var(--primary-blue);
+      transform: translateX(4px);
+    }
+
+    .related-item {
+      padding: 12px 16px;
+      background: var(--bg-light);
+      border-left: 4px solid var(--primary-blue);
+      border-radius: 8px;
+      margin-top: 10px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      color: var(--text-dark);
+    }
+
+    .related-item:hover {
+      background: white;
+      border-left-width: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .clear-button {
+      width: 100%;
+      padding: 12px;
+      background: white;
+      border: 3px solid var(--error);
+      color: var(--error);
+      border-radius: 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .clear-button:hover {
+      background: var(--error);
+      color: white;
+    }
+
+    .update-time {
+      font-size: 0.9rem;
+      color: var(--text-medium);
+      padding: 12px;
+      background: var(--bg-light);
+      border-radius: 8px;
+      text-align: center;
+      font-weight: 500;
+    }
+
+    @media (max-width: 1024px) {
+      .main-layout {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .hero-section {
+        padding: 28px 24px;
+      }
+
+      .hero-section h1 {
+        font-size: 1.6rem;
+      }
+
+      .quick-questions {
+        grid-template-columns: 1fr;
+      }
+
+      .top-bar-content {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="top-bar-content">
+      <div class="logo-section">
+        <span class="logo">🏙️</span>
+        <div>
+          <div class="logo-text">Boston 311 Helper</div>
+          <div class="tagline">Your neighborhood assistant</div>
+        </div>
+      </div>
+      <div class="status-badge">
+        <span class="status-dot"></span>
+        <span id="statusText">Online & Ready</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="offline-notice" id="offlineNotice">
+      <span style="font-size: 1.5rem;">⚠️</span>
+      <span>You're offline right now. Showing your saved conversations.</span>
+    </div>
+
+    <div class="hero-section">
+      <h1>Ask About Your Neighborhood 👋</h1>
+      <p>Get answers about service requests, street conditions, and city services in your area. Just ask in plain English!</p>
+      
+      <div class="neighborhood-bar">
+        <label for="neighborhoodPicker">📍 Your Neighborhood:</label>
+        <select id="neighborhoodPicker">
+          <option value="">Choose your area...</option>
+          <option value="Allston">Allston</option>
+          <option value="Back Bay">Back Bay</option>
+          <option value="Beacon Hill">Beacon Hill</option>
+          <option value="Brighton">Brighton</option>
+          <option value="Charlestown">Charlestown</option>
+          <option value="Dorchester">Dorchester</option>
+          <option value="East Boston">East Boston</option>
+          <option value="Fenway">Fenway</option>
+          <option value="Hyde Park">Hyde Park</option>
+          <option value="Jamaica Plain">Jamaica Plain</option>
+          <option value="Mattapan">Mattapan</option>
+          <option value="Mission Hill">Mission Hill</option>
+          <option value="North End">North End</option>
+          <option value="Roslindale">Roslindale</option>
+          <option value="Roxbury">Roxbury</option>
+          <option value="South Boston">South Boston</option>
+          <option value="South End">South End</option>
+          <option value="West End">West End</option>
+          <option value="West Roxbury">West Roxbury</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="main-layout">
+      <div class="chat-panel">
+        <div class="card">
+          <div class="card-header">
+            <h2>Your Conversation</h2>
+          </div>
+          
+          <div class="chat-container" id="chatContainer">
+            <div class="welcome-screen">
+              <div class="welcome-icon">💬</div>
+              <h3>Hi there! What would you like to know?</h3>
+              <p>Choose a question below or type your own</p>
+              
+              <div class="quick-questions">
+                <div class="quick-question-card" data-q="How many open cases in Dorchester?">
+                  <span class="quick-question-icon">🏘️</span>
+                  <div class="quick-question-text">What's happening in my neighborhood?</div>
+                </div>
+                <div class="quick-question-card" data-q="What are the most common service requests?">
+                  <span class="quick-question-icon">📋</span>
+                  <div class="quick-question-text">What do people report most?</div>
+                </div>
+                <div class="quick-question-card" data-q="How many pothole requests this month?">
+                  <span class="quick-question-icon">🚧</span>
+                  <div class="quick-question-text">Street & road conditions</div>
+                </div>
+                <div class="quick-question-card" data-q="Show me trash collection cases">
+                  <span class="quick-question-icon">🗑️</span>
+                  <div class="quick-question-text">Trash & sanitation</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="loading-box" id="loadingBox">
+            <div class="loading-title">Working on your question...</div>
+            <div class="loading-step" id="loadStep1">
+              <div class="step-marker">⏳</div>
+              <span>Reading your question</span>
+            </div>
+            <div class="loading-step" id="loadStep2">
+              <div class="step-marker">🔍</div>
+              <span>Searching the database</span>
+            </div>
+            <div class="loading-step" id="loadStep3">
+              <div class="step-marker">📊</div>
+              <span>Finding the answer</span>
+            </div>
+            <div class="loading-step" id="loadStep4">
+              <div class="step-marker">✅</div>
+              <span>Almost done!</span>
+            </div>
+          </div>
+
+          <div class="input-area">
+            <label class="input-label" for="questionBox">Type Your Question</label>
+            <textarea 
+              id="questionBox" 
+              class="question-input"
+              placeholder="Example: How many open pothole reports in my neighborhood?"
+            ></textarea>
+
+            <div class="input-actions">
+              <div class="hint-chips">
+                <span class="hint-chip" data-hint="How many">How many...</span>
+                <span class="hint-chip" data-hint="Show me">Show me...</span>
+                <span class="hint-chip" data-hint="What's">What's...</span>
+              </div>
+              <button class="submit-button" id="askButton">
+                <span id="buttonText">Ask Question</span>
+              </button>
+            </div>
+
+            <div class="error-message" id="errorBox"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="side-card">
+          <h3>💡 Helpful Info</h3>
+          <div class="update-time">Updated 2 hours ago</div>
+          <p id="contextText" style="margin-top: 16px;">Ask about service requests, street issues, or what's happening in your area!</p>
+        </div>
+
+        <div class="side-card">
+          <h3>📞 Need Help?</h3>
+          <a href="tel:311" class="resource-link">
+            <span>📱</span>
+            <span>Call 311</span>
+          </a>
+          <a href="https://www.boston.gov/departments/311" target="_blank" class="resource-link">
+            <span>🌐</span>
+            <span>Visit Boston.gov</span>
+          </a>
+          <a href="https://www.boston.gov/departments/311/report-issue-boston-311" target="_blank" class="resource-link">
+            <span>📝</span>
+            <span>Report an Issue</span>
+          </a>
+        </div>
+
+        <div class="side-card" id="relatedBox" style="display: none;">
+          <h3>💭 You Might Also Ask</h3>
+          <div id="relatedList"></div>
+        </div>
+
+        <div class="side-card">
+          <button class="clear-button" id="clearButton">🗑️ Clear Conversation</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <input type="hidden" id="apiUrl" value="https://b311-chatbot-backend-763245636613.us-central1.run.app" />
+
+  <script>
+    const apiUrl = document.getElementById("apiUrl");
+    const questionBox = document.getElementById("questionBox");
+    const askButton = document.getElementById("askButton");
+    const buttonText = document.getElementById("buttonText");
+    const clearButton = document.getElementById("clearButton");
+    const chatContainer = document.getElementById("chatContainer");
+    const errorBox = document.getElementById("errorBox");
+    const loadingBox = document.getElementById("loadingBox");
+    const neighborhoodPicker = document.getElementById("neighborhoodPicker");
+    const contextText = document.getElementById("contextText");
+    const relatedBox = document.getElementById("relatedBox");
+    const relatedList = document.getElementById("relatedList");
+    const offlineNotice = document.getElementById("offlineNotice");
+    const statusText = document.getElementById("statusText");
+
+    let chatHistory = [];
+    let userNeighborhood = "";
+    let isOnline = navigator.onLine;
+
+    const contextTips = {
+      'open': "Open cases are currently being worked on by city crews.",
+      'pothole': "Most potholes get fixed within a few days of being reported.",
+      'trash': "Each neighborhood has its own trash pickup schedule.",
+      'parking': "You can pay or contest parking tickets online.",
+      'default': "I can help you learn about what's happening in your neighborhood!"
+    };
+
+    const relatedQuestions = {
+      'open': ["Which areas have the most open cases?", "How long do repairs usually take?"],
+      'pothole': ["Which streets need the most repairs?", "How many were fixed recently?"],
+      'trash': ["What trash issues are most common?", "Which areas report the most problems?"],
+      'default': ["What's the most common request?", "Which neighborhood is busiest?"]
+    };
+
+    window.addEventListener('online', () => {
+      isOnline = true;
+      offlineNotice.classList.remove('show');
+      statusText.textContent = 'Online & Ready';
+    });
+
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      offlineNotice.classList.add('show');
+      statusText.textContent = 'Offline Mode';
+    });
+
+    if (!isOnline) {
+      offlineNotice.classList.add('show');
+      statusText.textContent = 'Offline Mode';
+    }
+
+    function loadNeighborhood() {
+      userNeighborhood = localStorage.getItem('boston311_neighborhood') || '';
+      if (userNeighborhood) {
+        neighborhoodPicker.value = userNeighborhood;
+        contextText.textContent = `I'll automatically include ${userNeighborhood} in your questions!`;
+      }
+    }
+
+    neighborhoodPicker.addEventListener('change', (e) => {
+      userNeighborhood = e.target.value;
+      localStorage.setItem('boston311_neighborhood', userNeighborhood);
+      
+      if (userNeighborhood) {
+        contextText.textContent = `I'll automatically include ${userNeighborhood} in your questions!`;
+      } else {
+        contextText.textContent = "Ask about service requests, street issues, or what's happening in your area!";
+      }
+    });
+
+    function loadHistory() {
+      const saved = localStorage.getItem('boston311_chat_history');
+      if (saved) {
+        chatHistory = JSON.parse(saved);
+        showConversation();
+      }
+    }
+
+    function saveHistory() {
+      localStorage.setItem('boston311_chat_history', JSON.stringify(chatHistory));
+    }
+
+    clearButton.addEventListener('click', () => {
+      if (confirm('Clear your conversation history?')) {
+        chatHistory = [];
+        saveHistory();
+        showConversation();
+        relatedBox.style.display = 'none';
+      }
+    });
+
+    function updateSidebar(question) {
+      const q = question.toLowerCase();
+      let tip = contextTips.default;
+      let related = relatedQuestions.default;
+
+      for (let key in contextTips) {
+        if (q.includes(key)) {
+          tip = contextTips[key];
+          related = relatedQuestions[key] || relatedQuestions.default;
+          break;
+        }
+      }
+
+      contextText.textContent = tip;
+      
+      relatedList.innerHTML = related.map(r => 
+        `<div class="related-item" onclick="askThis('${escape(r)}')">${r}</div>`
+      ).join('');
+      relatedBox.style.display = 'block';
+    }
+
+    function findStats(data) {
+      if (!data || data.length === 0) return null;
+      
+      if (data.length === 1) {
+        const keys = Object.keys(data[0]);
+        if (keys.length === 1) {
+          const val = data[0][keys[0]];
+          if (!isNaN(val)) {
+            return [{ number: val, label: keys[0].replace(/_/g, ' ') }];
+          }
+        }
+      }
+      
+      if (data.length <= 5) {
+        const stats = [];
+        data.forEach(row => {
+          const keys = Object.keys(row);
+          if (keys.length === 2) {
+            const labelKey = keys.find(k => isNaN(row[k]));
+            const valueKey = keys.find(k => !isNaN(row[k]));
+            if (labelKey && valueKey) {
+              stats.push({ number: row[valueKey], label: row[labelKey] });
+            }
+          }
+        });
+        if (stats.length > 0) return stats;
+      }
+      
+      return null;
+    }
+
+    function showConversation() {
+      if (chatHistory.length === 0) {
+        chatContainer.innerHTML = `
+          <div class="welcome-screen">
+            <div class="welcome-icon">💬</div>
+            <h3>Hi there! What would you like to know?</h3>
+            <p>Choose a question below or type your own</p>
+            
+            <div class="quick-questions">
+              <div class="quick-question-card" data-q="How many open cases in Dorchester?">
+                <span class="quick-question-icon">🏘️</span>
+                <div class="quick-question-text">What's happening in my neighborhood?</div>
+              </div>
+              <div class="quick-question-card" data-q="What are the most common service requests?">
+                <span class="quick-question-icon">📋</span>
+                <div class="quick-question-text">What do people report most?</div>
+              </div>
+              <div class="quick-question-card" data-q="How many pothole requests this month?">
+                <span class="quick-question-icon">🚧</span>
+                <div class="quick-question-text">Street & road conditions</div>
+              </div>
+              <div class="quick-question-card" data-q="Show me trash collection cases">
+                <span class="quick-question-icon">🗑️</span>
+                <div class="quick-question-text">Trash & sanitation</div>
+              </div>
+            </div>
+          </div>
+        `;
+        
+        document.querySelectorAll('.quick-question-card').forEach(card => {
+          card.addEventListener('click', () => {
+            questionBox.value = card.dataset.q;
+            questionBox.focus();
+          });
+        });
+        return;
+      }
+
+      chatContainer.innerHTML = `<div class="conversation">${chatHistory.map((item, i) => {
+        const stats = findStats(item.data);
+        
+        return `
+          <div class="message-bubble">
+            <div class="user-message">${clean(item.question)}</div>
+          </div>
+          
+          <div class="message-bubble">
+            <div class="bot-message">
+              <div class="bot-header">
+                <span class="bot-icon">🤖</span>
+                <span class="bot-label">Boston 311 Helper</span>
+              </div>
+              
+              ${stats ? `
+                <div class="stats-row">
+                  ${stats.map(s => `
+                    <div class="stat-item">
+                      <span class="stat-value">${s.number.toLocaleString()}</span>
+                      <span class="stat-name">${s.label}</span>
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
+              
+              <div class="answer-content">${clean(item.answer)}</div>
+              
+              <div class="tech-details">
+                <div class="tech-toggle" onclick="showTech(${i})">
+                  <span>View Technical Details</span>
+                  <span id="tech-arrow-${i}">▼</span>
+                </div>
+                <div class="tech-panel" id="tech-panel-${i}">
+                  <div class="sql-code">${clean(item.sql)}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}</div>`;
+
+      chatContainer.scrollTop = chatContainer.scrollHeight;
+    }
+
+    window.showTech = function(i) {
+      const panel = document.getElementById(`tech-panel-${i}`);
+      const arrow = document.getElementById(`tech-arrow-${i}`);
+      panel.classList.toggle('show');
+      arrow.textContent = panel.classList.contains('show') ? '▲' : '▼';
+    };
+
+    window.askThis = function(q) {
+      q = unescape(q);
+      questionBox.value = q;
+      questionBox.focus();
+      askButton.click();
+    };
+
+    function clean(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function escape(text) {
+      return text.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    }
+
+    function showError(msg) {
+      if (!msg) {
+        errorBox.classList.remove('show');
+        errorBox.textContent = "";
+      } else {
+        errorBox.classList.add('show');
+        errorBox.textContent = msg;
+      }
+    }
+
+    function startLoading() {
+      loadingBox.classList.add('show');
+      
+      const steps = [
+        { id: 'loadStep1', delay: 0 },
+        { id: 'loadStep2', delay: 800 },
+        { id: 'loadStep3', delay: 2000 },
+        { id: 'loadStep4', delay: 3500 }
+      ];
+
+      steps.forEach(({ id, delay }) => {
+        setTimeout(() => {
+          if (loadingBox.classList.contains('show')) {
+            const step = document.getElementById(id);
+            step.classList.add('active');
+            step.querySelector('.step-marker').innerHTML = '<div class="spinner"></div>';
+          }
+        }, delay);
+      });
+    }
+
+    function stopLoading() {
+      ['loadStep1', 'loadStep2', 'loadStep3', 'loadStep4'].forEach((id, i) => {
+        const step = document.getElementById(id);
+        step.classList.remove('active');
+        step.classList.add('done');
+        step.querySelector('.step-marker').textContent = '✓';
+      });
+
+      setTimeout(() => {
+        loadingBox.classList.remove('show');
+        ['loadStep1', 'loadStep2', 'loadStep3', 'loadStep4'].forEach((id, i) => {
+          const step = document.getElementById(id);
+          step.classList.remove('done');
+          const icons = ['⏳', '🔍', '📊', '✅'];
+          step.querySelector('.step-marker').textContent = icons[i];
+        });
+      }, 1500);
+    }
+
+    function setBusy(busy) {
+      askButton.disabled = busy;
+      buttonText.textContent = busy ? "Thinking..." : "Ask Question";
+      
+      if (busy) startLoading();
+    }
+
+    askButton.addEventListener("click", async () => {
+      const url = `${apiUrl.value.trim().replace(/\/+$/, "")}/chat`;
+      let q = questionBox.value.trim();
+
+      showError("");
+
+      if (!q) {
+        showError("Please type a question first!");
+        return;
+      }
+
+      if (userNeighborhood && !q.toLowerCase().includes(userNeighborhood.toLowerCase())) {
+        q = `${q} (in ${userNeighborhood})`;
+      }
+
+      if (!isOnline) {
+        showError("You're offline. Showing saved conversations only.");
+        showConversation();
+        return;
+      }
+
+      updateSidebar(q);
+      setBusy(true);
+
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ question: q })
+        });
+
+        if (!resp.ok) throw new Error("Connection problem. Please try again.");
+
+        const data = await resp.json();
+
+        chatHistory.push({
+          question: questionBox.value.trim(),
+          answer: data.answer ?? "Couldn't find an answer to that.",
+          sql: data.sql ?? "-- No query",
+          data: data.data ?? [],
+          time: new Date().toISOString()
+        });
+
+        saveHistory();
+        showConversation();
+        stopLoading();
+        
+        questionBox.value = "";
+        showError("");
+      } catch (err) {
+        console.error(err);
+        showError(err.message || "Something went wrong. Please try again!");
+        loadingBox.classList.remove('show');
+      } finally {
+        setBusy(false);
+      }
+    });
+
+    questionBox.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        askButton.click();
+      }
+    });
+
+    document.querySelectorAll(".hint-chip").forEach(chip => {
+      chip.addEventListener("click", () => {
+        questionBox.value = chip.dataset.hint + " ";
+        questionBox.focus();
+      });
+    });
+
+    loadNeighborhood();
+    loadHistory();
+  </script>
+</body>
+</html>
