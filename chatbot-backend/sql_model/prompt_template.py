@@ -53,14 +53,17 @@ SQL: SELECT neighborhood, COUNT(*) as count FROM `boston311.service_requests_202
 
 SQL_INSTRUCTIONS = textwrap.dedent("""
 INSTRUCTIONS:
-1. For COUNT questions ("how many"), use SELECT COUNT(*) as count
-2. For LIST questions ("show me", "what are"), use SELECT specific columns and LIMIT 100
-3. For GROUP BY queries, always include ORDER BY count DESC and LIMIT 10
-4. Always use backticks around table name: `boston311.service_requests_2025`
-5. Use LIKE '%keyword%' for partial text matching
-6. Never use SELECT * - always specify columns
-7. For date filters, use comparison operators with TIMESTAMP values
-8. Return ONLY the SQL query, no explanations
+1. Generate ONLY a valid BigQuery SQL SELECT statement
+2. Use backticks for table names: `boston311.service_requests_2025`
+3. Use LIKE '%keyword%' for partial text matching (case-insensitive)
+4. ALWAYS use proper date functions for time-based queries
+5. Include reasonable LIMITs (default 100 for lists, 10 for aggregations)
+6. Use meaningful column aliases (as count, as avg_days, etc.)
+7. For counts: Always use COUNT(*) or COUNT(DISTINCT column_name)
+8. For time periods: Use DATE_SUB with CURRENT_TIMESTAMP()
+9. DO NOT include markdown code fences or extra text
+10. Return ONLY the SQL query
+11. IMPORTANT: If the question asks "what about X?" or "how about Y?", maintain the same query TYPE (COUNT/LIST/AGGREGATE) as the previous question, just change the filter conditions
 """)
 
 SQL_PROMPT_TEMPLATE = """### Task

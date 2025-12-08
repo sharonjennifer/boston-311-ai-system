@@ -27,7 +27,7 @@ LOG_LEVEL = os.getenv("B311_LOG_LEVEL", "INFO").upper()
 logging.basicConfig(
     level=LOG_LEVEL,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%(asctime)s [%(levelname)s] %(name)s: %(message)s"
+    datefmt="%Y-%m-%d %H:%M:%S"
 )
 logger = logging.getLogger("b311.pipeline")
 
@@ -37,10 +37,18 @@ bq = bigquery.Client(project=settings.PROJECT_ID)
 def run_pipeline(question: str, session_id: Optional[str] = None):
     sql_query = None
     records = []
+    
+    # Get conversation manager
+    conv_manager = get_conversation_manager()
+    
+    # Get conversation context if session exists
+    context = ""
+    if session_id:
+        context = conv_manager.get_context(session_id, num_turns=2)
 
-    # 1. Parse user question
+    # 1. Parse user question with context
     try:
-        parsed = parse_query(question)
+        parsed = parse_query(question, context=context)
         logger.info("Parsed output %s", parsed)
     except Exception as e:
         logger.exception("Query parsing failed")
@@ -59,9 +67,9 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         logger.exception("Keyword retrieval failed; continuing without RAG hints.")
         keywords = []
 
-    # 3. Generate SQL via Vertex endpoint
+    # 3. Generate SQL via Vertex endpoint with context
     try:
-        sql_query = generate_sql(question, keywords)
+        sql_query = generate_sql(question, keywords, context=context)
         logger.info("SQL Query output %s", sql_query)
 
         if not sql_query or not sql_query.strip():
@@ -88,9 +96,10 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
             [],
         )
 
+    # Convert to JSON-serializable format
     records = json.loads(df.to_json(orient="records"))
 
-    # 4a. Explicit “no data found” case
+    # 4a. Explicit "no data found" case
     if not records:
         logger.info("BigQuery returned 0 rows.")
         return (
@@ -109,11 +118,8 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         parts = ", ".join(f"{k}: {v}" for k, v in first.items())
         answer = "Here are the results: " + parts
 
-        # Store conversation turn if session exists
+    # Store conversation turn if session exists
     if session_id:
-        conv_manager = get_conversation_manager()
         conv_manager.add_turn(session_id, question, answer, sql_query, records)
     
     return answer, sql_query, records
-
-

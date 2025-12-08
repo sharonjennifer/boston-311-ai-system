@@ -64,12 +64,25 @@ class QueryParser:
             logger.critical(f"Failed to initialize Vertex AI: {e}")
             raise
 
-    def parse(self, user_text: str) -> dict:
+    def parse(self, user_text: str, context: str = "") -> dict:
+        """
+        Parse user query with optional conversation context
+        
+        Args:
+            user_text: The current user question
+            context: Optional conversation history for context
+        """
         logger.info(f"Parsing query: '{user_text}'")
+        
+        # Build prompt with context if available
+        full_prompt = user_text
+        if context:
+            full_prompt = f"{context}\n\nCurrent question: {user_text}\n\nExtract entities from the CURRENT question, using context to fill in missing details."
+            logger.debug(f"Using conversation context")
         
         try:
             response = self.model.generate_content(
-                user_text,
+                full_prompt,
                 generation_config=GenerationConfig(
                     response_mime_type="application/json",
                     temperature=0.0
@@ -105,6 +118,11 @@ class QueryParser:
             logger.error(f"Error during parsing: {e}")
             return {}
 
+def parse_query(user_text: str, context: str = ""):
+    """Parse query with optional conversation context"""
+    parser = get_parser()
+    return parser.parse(user_text, context)
+
 parser_instance = None
 
 def get_parser():
@@ -114,6 +132,7 @@ def get_parser():
     return parser_instance
 
 
-def parse_query(user_text):
+def parse_query(user_text: str, context: str = ""):
+    """Parse query with optional conversation context"""
     parser = get_parser()
-    return parser.parse(user_text)
+    return parser.parse(user_text, context)
