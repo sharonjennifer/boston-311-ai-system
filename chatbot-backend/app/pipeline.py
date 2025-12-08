@@ -16,6 +16,9 @@ from sql_model.endpoint import generate_sql
 from answer_model.endpoint import generate_answer
 from app.config import settings
 
+from typing import Tuple, List, Dict, Optional
+from app.conversation_manager import get_conversation_manager
+
 load_dotenv()
 
 LOG_LEVEL = os.getenv("B311_LOG_LEVEL", "INFO").upper()
@@ -30,7 +33,7 @@ logger = logging.getLogger("b311.pipeline")
 bq = bigquery.Client(project=settings.PROJECT_ID)
 
 
-def run_pipeline(question: str):
+def run_pipeline(question: str, session_id: Optional[str] = None):
     sql_query = None
     records = []
 
@@ -105,4 +108,11 @@ def run_pipeline(question: str):
         parts = ", ".join(f"{k}: {v}" for k, v in first.items())
         answer = "Here are the results: " + parts
 
+        # Store conversation turn if session exists
+    if session_id:
+        conv_manager = get_conversation_manager()
+        conv_manager.add_turn(session_id, question, answer, sql_query, records)
+    
     return answer, sql_query, records
+
+
