@@ -2,6 +2,7 @@ import os
 import sys
 import logging
 from pathlib import Path
+import json
 
 from dotenv import load_dotenv
 from google.cloud import bigquery
@@ -87,7 +88,7 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
             [],
         )
 
-    records = df.to_dict(orient="records")
+    records = json.loads(df.to_json(orient="records"))
 
     # 4a. Explicit “no data found” case
     if not records:
