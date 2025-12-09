@@ -93,7 +93,7 @@ SELECT
   longitude
 FROM `{PROJECT}.{DATASET}.{FEATURE_VIEW}`
 """
-df = bq.query(query).to_dataframe()
+df = bq.query(query).to_dataframe(create_bqstorage_client=False)
 
 if df.empty:
     print("[INFO] No open cases to score. Exiting.")
