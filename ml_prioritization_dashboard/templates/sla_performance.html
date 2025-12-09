@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Boston 311 SLA Performance & Compliance</title>
+
+  <!-- Modern font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Leaflet for map -->
+  <link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+    crossorigin=""
+  />
+
+  <style>
+    :root {
+      --bg-shell: #f5f7fb;
+      --bg-card: #ffffff;
+      --bg-card-soft: #f8fafc;
+      --border-subtle: #e2e8f0;
+
+      --nav-bg: #021b3b;
+      --nav-bg-alt: #0b2648;
+      --nav-border: #0f2f5f;
+
+      --accent-blue: #2563eb;
+      --accent-red: #ff4c4c;
+      --accent-orange: #f97316;
+      --accent-green: #16a34a;
+
+      --text-main: #0f172a;
+      --text-muted: #6b7280;
+    }
+
+    body.dark-mode {
+      --bg-shell: #020617;
+      --bg-card: #02081f;
+      --bg-card-soft: #020617;
+      --border-subtle: #1f2937;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-shell);
+      color: var(--text-main);
+    }
+
+    /* Top nav */
+    .top-nav {
+      background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
+      border-bottom: 1px solid var(--nav-border);
+      color: #f9fafb;
+      padding: 10px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .top-nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .city-badge {
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.6);
+      padding: 4px 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    .top-nav-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .top-nav-title-main {
+      font-size: 20px;
+      font-weight: 600;
+    }
+
+    .top-nav-title-sub {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+
+    .top-nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+
+    .env-pill {
+      border-radius: 999px;
+      padding: 3px 10px;
+      border: 1px solid rgba(148,163,184,0.5);
+      color: #e5e7eb;
+      background: rgba(15,23,42,0.4);
+    }
+
+    .system-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(34,197,94,0.05);
+      border: 1px solid rgba(34,197,94,0.3);
+      color: #bbf7d0;
+      font-weight: 500;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
+    }
+
+    .page-shell {
+      padding: 20px 32px 40px;
+    }
+
+    @media (max-width: 768px) {
+      .top-nav, .page-shell { padding-inline: 16px; }
+    }
+
+    /* Tabs */
+    .page-tabs {
+      margin-top: 10px;
+      display: inline-flex;
+      border-radius: 999px;
+      background: #e5e7eb;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .page-tab {
+      padding: 5px 12px;
+      font-size: 11px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #374151;
+      font-weight: 500;
+    }
+
+    .page-tab-active {
+      background: #ffffff;
+      color: #111827;
+    }
+
+    /* Hero */
+    .hero-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+      border: 1px solid var(--border-subtle);
+      margin-top: 10px;
+      margin-bottom: 18px;
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .hero-main-title {
+      font-size: 22px;
+      font-weight: 650;
+      margin-bottom: 4px;
+    }
+
+    .hero-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 540px;
+    }
+
+    .hero-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
+    .hero-side {
+      min-width: 260px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      align-items: flex-end;
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: right;
+    }
+
+    /* KPI */
+    .kpi-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    .kpi-card {
+      flex: 1;
+      min-width: 170px;
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 10px 14px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 6px 18px rgba(15,23,42,0.05);
+    }
+
+    .kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+      color: var(--text-muted);
+    }
+
+    .kpi-value {
+      font-size: 22px;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    /* Panels */
+    .panel {
+      background: var(--bg-card);
+      border-radius: 12px;
+      border: 1px solid var(--border-subtle);
+      box-shadow: 0 6px 18px rgba(15,23,42,0.05);
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+
+    .panel-header-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .panel-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Layout for charts */
+    .charts-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.4fr);
+      gap: 14px;
+      margin-bottom: 16px;
+    }
+
+    @media (max-width: 900px) {
+      .charts-row {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .chart-container {
+      position: relative;
+      height: 230px;
+    }
+
+    .chart-container canvas {
+      width: 100% !important;
+      height: 100% !important;
+      display: block;
+    }
+
+    #slaMap {
+      width: 100%;
+      height: 100%;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    /* Overdue table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead {
+      background: var(--bg-card-soft);
+    }
+
+    th, td {
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--border-subtle);
+      text-align: left;
+    }
+
+    th {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      color: var(--text-muted);
+    }
+
+    tbody tr:nth-child(even) {
+      background: #f9fafb;
+    }
+
+    .tag-overdue {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+
+    .filter-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+      align-items: center;
+      font-size: 12px;
+    }
+
+    .filter-row label {
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 3px;
+    }
+
+    .filter-row select {
+      padding: 4px 8px;
+      border-radius: 7px;
+      border: 1px solid #cbd5e1;
+      background: #f9fafb;
+      font-size: 12px;
+      min-width: 160px;
+    }
+
+    .filter-row select:focus {
+      outline: none;
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 1px rgba(37,99,235,0.3);
+      background: #ffffff;
+    }
+
+    .empty-text {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="top-nav">
+    <div class="top-nav-left">
+      <div class="city-badge">City of Boston</div>
+      <div class="top-nav-title">
+        <div class="top-nav-title-main">311 SLA Performance &amp; Compliance</div>
+        <div class="top-nav-title-sub">
+          Track SLA compliance, resolution times, and overdue cases across the city.
+        </div>
+      </div>
+    </div>
+    <div class="top-nav-right">
+      <div class="env-pill">Environment: Internal • Pilot model v1.0</div>
+      <div class="system-status-pill">
+        <span class="status-dot"></span>
+        System online
+      </div>
+    </div>
+  </div>
+
+  <div class="page-shell">
+    <!-- Tabs -->
+    <div class="page-tabs">
+      <a href="/" class="page-tab">Command Center</a>
+      <a href="/work-queues" class="page-tab">Work Queues</a>
+      <a href="/neighborhoods" class="page-tab">Neighborhood performance</a>
+      <a href="/sla-performance" class="page-tab page-tab-active">SLA performance</a>
+      <a href="/demand-trends" class="page-tab">Demand trends</a>
+      <a href="/analytics" class="page-tab">Analytics</a>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero-card">
+      <div>
+        <div class="hero-main-title">SLA Performance &amp; Compliance</div>
+        <div class="hero-subtitle">
+          Use this view for accountability and planning. See how often teams beat SLA deadlines,
+          which services take longest to close, and where overdue cases are clustered.
+        </div>
+        <div class="hero-meta">
+          SLA metrics are based on the built-in target close dates and the same underlying 311 data
+          as the Command Center.
+        </div>
+      </div>
+      <div class="hero-side">
+        <div>Good for weekly reviews, stand-ups, and performance check-ins with department leads.</div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="kpi-strip">
+      <div class="kpi-card">
+        <div class="kpi-label">Overall SLA compliance</div>
+        <div class="kpi-value">
+          {{ "%.1f"|format(overall_sla_rate) if overall_sla_rate is not none else "—" }}%
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Avg resolution time (all cases)</div>
+        <div class="kpi-value">
+          {{ "%.1f"|format(avg_resolution_hours_all) if avg_resolution_hours_all is not none else "—" }} hrs
+        </div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Currently overdue &amp; still open</div>
+        <div class="kpi-value">
+          {{ overdue_count if overdue_count is not none else 0 }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Charts: SLA gauge + dept bar -->
+    <div class="charts-row">
+      <!-- SLA Gauge + description -->
+      <div class="panel">
+        <div class="panel-header-row">
+          <div>
+            <div class="panel-title">SLA compliance rate</div>
+            <div class="panel-subtitle">
+              Percentage of cases closed before their SLA target close date.
+            </div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="slaGaugeChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Compliance by department -->
+      <div class="panel">
+        <div class="panel-header-row">
+          <div>
+            <div class="panel-title">Compliance by department</div>
+            <div class="panel-subtitle">
+              Compare SLA performance across departments to spot leaders and laggards.
+            </div>
+          </div>
+        </div>
+        <div class="chart-container">
+          <canvas id="slaDeptBarChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Average Resolution Time + Map -->
+    <div class="charts-row">
+      <!-- Avg resolution time -->
+      <div class="panel">
+        <div class="panel-header-row">
+          <div>
+            <div class="panel-title">Average resolution time by service</div>
+            <div class="panel-subtitle">
+              Mean time from open to close for each service (in hours). Use this to understand where work lingers.
+            </div>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 280px;">
+          <canvas id="artServiceBarChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Overdue map -->
+      <div class="panel">
+        <div class="panel-header-row">
+          <div>
+            <div class="panel-title">Overdue cases on the map</div>
+            <div class="panel-subtitle">
+              Each marker is an open case whose SLA deadline has passed.
+            </div>
+          </div>
+        </div>
+        <div class="chart-container" style="height: 280px;">
+          <div id="slaMap"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overdue drilldown -->
+    <div class="panel">
+      <div class="panel-header-row">
+        <div>
+          <div class="panel-title">Overdue cases drilldown</div>
+          <div class="panel-subtitle">
+            Open cases whose SLA deadline has passed. Filter by neighborhood to focus a field team.
+          </div>
+        </div>
+      </div>
+
+      <div class="filter-row">
+        <label for="overdueNeighborhoodFilter">Neighborhood</label>
+        <select id="overdueNeighborhoodFilter">
+          <option value="ALL" selected>All neighborhoods</option>
+          {% if overdue_neighborhoods %}
+            {% for n in overdue_neighborhoods %}
+              <option value="{{ n }}">{{ n }}</option>
+            {% endfor %}
+          {% endif %}
+        </select>
+      </div>
+
+      {% if overdue_cases|length == 0 %}
+        <p class="empty-text">No overdue open cases at the moment. 🎉</p>
+      {% else %}
+        <div style="max-height: 360px; overflow-y: auto;">
+          <table id="overdueTable">
+            <thead>
+              <tr>
+                <th>Case ID</th>
+                <th>Neighborhood</th>
+                <th>Department</th>
+                <th>Status</th>
+                <th>Opened</th>
+                <th>Days overdue</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in overdue_cases %}
+                <tr data-neighborhood="{{ row.neighborhood or 'Unknown' }}">
+                  <td>Case {{ row.case_enquiry_id }}</td>
+                  <td>{{ row.neighborhood or "Unknown" }}</td>
+                  <td>{{ row.department or "Unknown" }}</td>
+                  <td><span class="tag-overdue">{{ row.case_status or "OVERDUE" }}</span></td>
+                  <td>{{ row.open_date_label or row.open_dt }}</td>
+                  <td>{{ row.days_overdue }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- JS: Chart.js + Leaflet -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+  ></script>
+
+  <script>
+    if (localStorage.getItem("b311_dark") === "true") {
+      document.body.classList.add("dark-mode");
+    }
+
+    // Center text plugin for the SLA gauge
+    Chart.register({
+      id: 'centerTextPlugin',
+      afterDraw(chart, args, options) {
+        if (!options || !options.text) return;
+        const { ctx, chartArea } = chart;
+        const text = options.text;
+
+        ctx.save();
+        ctx.font = '600 18px Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif';
+        ctx.fillStyle = '#111827';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const x = (chartArea.left + chartArea.right) / 2;
+        const y = (chartArea.top + chartArea.bottom) / 2;
+        ctx.fillText(text, x, y);
+        ctx.restore();
+      }
+    });
+
+    // Data from Flask
+    const overallSlaRate   = {{ overall_sla_rate or 0 }};
+    const deptLabels       = {{ sla_dept_labels | tojson | safe }};
+    const deptRates        = {{ sla_dept_rates  | tojson | safe }};
+    const artServiceLabels = {{ art_service_labels | tojson | safe }};
+    const artServiceHours  = {{ art_service_hours  | tojson | safe }};
+    const overdueMapCases  = {{ overdue_map_cases | tojson | safe }};
+
+    // SLA gauge
+    (function () {
+      const ctx = document.getElementById('slaGaugeChart');
+      if (!ctx) return;
+
+      const gaugePct = overallSlaRate || 0;
+
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+          labels: ['On time', 'Late'],
+          datasets: [{
+            data: [gaugePct, Math.max(0, 100 - gaugePct)],
+            backgroundColor: ['#16a34a', '#fee2e2'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '65%',
+          rotation: -90,
+          circumference: 180,
+          plugins: {
+            legend: { display: false },
+            tooltip: { enabled: true },
+            centerTextPlugin: {
+              text: gaugePct.toFixed(1) + '%'
+            }
+          }
+        }
+      });
+    })();
+
+    // SLA by department
+    (function () {
+      const ctx = document.getElementById('slaDeptBarChart');
+      if (!ctx || !deptLabels.length) return;
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: deptLabels,
+          datasets: [{
+            label: 'SLA compliance (%)',
+            data: deptRates
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          scales: {
+            x: {
+              beginAtZero: true,
+              max: 100,
+              ticks: { callback: value => value + '%' }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    })();
+
+    // Average resolution time by service
+    (function () {
+      const ctx = document.getElementById('artServiceBarChart');
+      if (!ctx || !artServiceLabels.length) return;
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: artServiceLabels,
+          datasets: [{
+            label: 'Avg resolution time (hrs)',
+            data: artServiceHours
+          }]
+        },
+        options: {
+          indexAxis: 'x',
+          responsive: true,
+          scales: {
+            y: { beginAtZero: true }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    })();
+
+    // Overdue map
+    (function () {
+      const mapDiv = document.getElementById('slaMap');
+      if (!mapDiv) return;
+
+      if (!overdueMapCases.length) {
+        mapDiv.innerHTML = '<p class="empty-text">No overdue cases with map coordinates.</p>';
+        return;
+      }
+
+      const map = L.map('slaMap', { scrollWheelZoom: false }).setView([42.32, -71.06], 11);
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 18,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      const markers = [];
+
+      overdueMapCases.forEach(c => {
+        if (typeof c.latitude !== 'number' || typeof c.longitude !== 'number') return;
+
+        const marker = L.circleMarker([c.latitude, c.longitude], {
+          radius: 5,
+          stroke: false,
+          fillOpacity: 0.8
+        }).addTo(map);
+
+        const popupHtml = `
+          <strong>Case ${c.case_enquiry_id}</strong><br/>
+          ${c.neighborhood || 'Unknown neighborhood'}<br/>
+          Dept: ${c.department || '—'}<br/>
+          Reason: ${c.reason || '—'}<br/>
+          Days overdue: ${c.days_overdue ?? '—'}
+        `;
+        marker.bindPopup(popupHtml);
+        markers.push(marker);
+      });
+
+      if (markers.length) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2));
+      }
+    })();
+
+    // Overdue table neighborhood filter
+    (function () {
+      const select = document.getElementById('overdueNeighborhoodFilter');
+      const rows   = document.querySelectorAll('#overdueTable tbody tr');
+      if (!select || !rows.length) return;
+
+      select.addEventListener('change', () => {
+        const val = select.value;
+        rows.forEach(tr => {
+          const n = tr.getAttribute('data-neighborhood') || 'Unknown';
+          tr.style.display = (val === 'ALL' || n === val) ? '' : 'none';
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
