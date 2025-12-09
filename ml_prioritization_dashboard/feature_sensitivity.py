@@ -70,7 +70,7 @@ query = f"""
   FROM `{PROJECT}.{DATASET}.{TRAIN_FEATURE_TABLE}`
   LIMIT 2000
 """
-df = bq.query(query).to_dataframe()
+df = bq.query(query).to_dataframe(create_bqstorage_client=False)
 
 if df.empty:
     raise RuntimeError("No rows returned for SHAP analysis.")
