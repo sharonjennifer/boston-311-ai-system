@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Boston 311 – Demand Trends</title>
+
+  <!-- Font -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <style>
+    :root {
+      --bg-shell: #f5f7fb;
+      --bg-main: #f5f7fb;
+      --bg-card: #ffffff;
+      --bg-card-soft: #f8fafc;
+      --border-subtle: #e2e8f0;
+
+      --nav-bg: #021b3b;
+      --nav-bg-alt: #0b2648;
+      --nav-border: #0f2f5f;
+
+      --accent-blue: #2563eb;
+      --accent-red: #ff4c4c;
+
+      --text-main: #0f172a;
+      --text-muted: #6b7280;
+    }
+
+    body.dark-mode {
+      --bg-shell: #020617;
+      --bg-main: #020617;
+      --bg-card: #02081f;
+      --bg-card-soft: #020617;
+      --border-subtle: #1f2937;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg-shell);
+      color: var(--text-main);
+    }
+
+    /* Top nav */
+    .top-nav {
+      background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
+      border-bottom: 1px solid var(--nav-border);
+      color: #f9fafb;
+      padding: 10px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .top-nav-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .city-badge {
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.6);
+      padding: 4px 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+    .top-nav-title {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .top-nav-title-main {
+      font-size: 20px;
+      font-weight: 600;
+    }
+    .top-nav-title-sub {
+      font-size: 12px;
+      opacity: 0.85;
+    }
+    .top-nav-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+    }
+    .env-pill {
+      border-radius: 999px;
+      padding: 3px 10px;
+      border: 1px solid rgba(148,163,184,0.5);
+      color: #e5e7eb;
+      background: rgba(15,23,42,0.4);
+    }
+    .system-status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 4px 10px;
+      background: rgba(34,197,94,0.05);
+      border: 1px solid rgba(34,197,94,0.3);
+      color: #bbf7d0;
+      font-weight: 500;
+    }
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
+    }
+
+    .page-shell {
+      padding: 20px 32px 40px;
+    }
+
+    @media (max-width: 900px) {
+      .top-nav, .page-shell {
+        padding-inline: 16px;
+      }
+    }
+
+    /* Tabs */
+    .page-tabs {
+      margin-bottom: 10px;
+      display: inline-flex;
+      border-radius: 999px;
+      background: #e5e7eb;
+      padding: 2px;
+      gap: 2px;
+    }
+    .page-tab {
+      padding: 5px 12px;
+      font-size: 11px;
+      border-radius: 999px;
+      text-decoration: none;
+      color: #374151;
+      font-weight: 500;
+    }
+    .page-tab-active {
+      background: #ffffff;
+      color: #111827;
+    }
+
+    /* Hero */
+    .hero-card {
+      background: var(--bg-card);
+      border-radius: 16px;
+      padding: 18px 20px;
+      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+      border: 1px solid var(--border-subtle);
+      margin-bottom: 18px;
+    }
+    .hero-title {
+      font-size: 20px;
+      font-weight: 650;
+      margin-bottom: 4px;
+    }
+    .hero-subtitle {
+      font-size: 13px;
+      color: var(--text-muted);
+      max-width: 780px;
+    }
+    .hero-note {
+      margin-top: 8px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    /* Chart layout */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .charts-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .chart-card {
+      background: var(--bg-card);
+      border-radius: 14px;
+      border: 1px solid var(--border-subtle);
+      padding: 12px 14px;
+      box-shadow: 0 6px 18px rgba(15,23,42,0.05);
+    }
+    .chart-header {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      margin-bottom: 8px;
+    }
+    .chart-title {
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .chart-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .chart-empty {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 8px 0;
+    }
+
+    canvas {
+      width: 100%;
+      max-height: 260px;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <!-- Top nav -->
+  <div class="top-nav">
+    <div class="top-nav-left">
+      <div class="city-badge">City of Boston</div>
+      <div class="top-nav-title">
+        <div class="top-nav-title-main">311 Demand Trends & Forecasting</div>
+        <div class="top-nav-title-sub">
+          Visualize historical volume, spot seasonality, and anticipate upcoming demand.
+        </div>
+      </div>
+    </div>
+    <div class="top-nav-right">
+      <div class="env-pill">Environment: Internal • Pilot model v1.0</div>
+      <div class="system-status-pill">
+        <span class="status-dot"></span>
+        System online
+      </div>
+    </div>
+  </div>
+
+  <div class="page-shell">
+    <!-- Tabs -->
+    <div class="page-tabs">
+      <a href="/" class="page-tab">Command Center</a>
+      <a href="/work-queues" class="page-tab">Work Queues</a>
+      <a href="/neighborhoods" class="page-tab">Neighborhood performance</a>
+      <a href="/sla-performance" class="page-tab">SLA performance</a>
+      <a href="/demand-trends" class="page-tab page-tab-active">Demand trends</a>
+      <a href="/analytics" class="page-tab page-tab-active">Analytics</a>
+    </div>
+
+    <!-- Hero -->
+    <div class="hero-card">
+      <div class="hero-title">Demand Trends & Forecasting</div>
+      <div class="hero-subtitle">
+        Use this view for medium- and long-term planning. Track how 311 volume changes over time,
+        understand seasonality, and see a simple baseline forecast for the next few months.
+      </div>
+      <div class="hero-note">
+        Data source: last 12 months of 311 cases from the main service table. Forecast is a
+        simple trend-based baseline using recent monthly volumes (falls back to a flat line if there
+        isn’t enough history).
+      </div>
+    </div>
+
+    <!-- Top row charts -->
+    <div class="charts-grid" style="margin-bottom:16px;">
+      <!-- Weekly history -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Weekly case volume (last 12 months)</div>
+          <div class="chart-subtitle">History only – full weeks, no forecast mixed in.</div>
+        </div>
+        {% if hist_week_labels|length == 0 %}
+          <div class="chart-empty">No historical volume data available yet.</div>
+        {% else %}
+          <canvas id="weeklyHistoryChart"></canvas>
+        {% endif %}
+      </div>
+
+      <!-- Forecast -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Monthly trend forecast (next 6 months)</div>
+          <div class="chart-subtitle">
+            Trend-based baseline forecast using recent monthly case volume. Not an official forecast.
+          </div>
+        </div>
+        {% if fc_week_labels|length == 0 %}
+          <div class="chart-empty">No forecast available yet.</div>
+        {% else %}
+          <canvas id="forecastChart"></canvas>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Second row charts -->
+    <div class="charts-grid">
+      <!-- Monthly seasonality -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Seasonality – total volume by month</div>
+          <div class="chart-subtitle">
+            Month-of-year volume for all request topics combined.
+          </div>
+        </div>
+        {% if month_labels|length == 0 %}
+          <div class="chart-empty">No seasonal breakdown available yet.</div>
+        {% else %}
+          <canvas id="monthlySeasonChart"></canvas>
+        {% endif %}
+      </div>
+
+      <!-- Top topics -->
+      <div class="chart-card">
+        <div class="chart-header">
+          <div class="chart-title">Top request topics (last 12 months)</div>
+          <div class="chart-subtitle">
+            Total number of cases by reason – top 5 topics.
+          </div>
+        </div>
+        {% if topic_labels|length == 0 %}
+          <div class="chart-empty">No topic breakdown available yet.</div>
+        {% else %}
+          <canvas id="topTopicsChart"></canvas>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Full-width seasonal peaks by topic -->
+    <div class="chart-card" style="margin-top:16px;">
+      <div class="chart-header">
+        <div class="chart-title">Seasonal peaks by topic</div>
+        <div class="chart-subtitle">
+          Month-of-year case volume for the top request topics (reasons). Use this for planning
+          department-specific surges (e.g., street cleaning, enforcement).
+        </div>
+      </div>
+      {% if seasonal_datasets|length == 0 %}
+        <div class="chart-empty">No seasonal breakdown available yet.</div>
+      {% else %}
+        <canvas id="seasonalTopicsFullChart"></canvas>
+      {% endif %}
+    </div>
+  </div>
+
+  <script>
+    // Data from Flask
+    const histWeekLabels = {{ hist_week_labels | tojson | safe }};
+    const histWeekValues = {{ hist_week_values | tojson | safe }};
+    const fcWeekLabels   = {{ fc_week_labels   | tojson | safe }};
+    const fcWeekValues   = {{ fc_week_values   | tojson | safe }};
+
+    const monthLabels    = {{ month_labels     | tojson | safe }};
+    const monthTotals    = {{ month_totals     | tojson | safe }};
+    const monthHasData   = {{ month_has_data   | tojson | safe }};
+
+    const seasonalRaw    = {{ seasonal_datasets | tojson | safe }};
+    const topicLabels    = {{ topic_labels      | tojson | safe }};
+    const topicTotals    = {{ topic_totals      | tojson | safe }};
+
+    // Weekly history chart
+    if (histWeekLabels.length > 0) {
+      const ctxHist = document.getElementById("weeklyHistoryChart");
+      new Chart(ctxHist, {
+        type: "line",
+        data: {
+          labels: histWeekLabels,
+          datasets: [{
+            label: "Weekly cases",
+            data: histWeekValues,
+            tension: 0.25,
+            borderColor: "#2563eb",
+            backgroundColor: "rgba(37,99,235,0.08)",
+            fill: true,
+            pointRadius: 2,
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 8 },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(148,163,184,0.3)" }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // Forecast chart (monthly)
+    if (fcWeekLabels.length > 0) {
+      const ctxFc = document.getElementById("forecastChart");
+      new Chart(ctxFc, {
+        type: "line",
+        data: {
+          labels: fcWeekLabels,
+          datasets: [{
+            label: "Baseline forecast",
+            data: fcWeekValues,
+            borderColor: "#fb7185",
+            borderDash: [4, 4],
+            pointRadius: 0,
+            fill: false,
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: {
+              ticks: { maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
+              grid: { display: false }
+            },
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(148,163,184,0.3)" }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // Monthly seasonality – total volume (all topics)
+    if (monthLabels.length > 0) {
+      const ctxMonth = document.getElementById("monthlySeasonChart");
+
+      const baseColor   = "rgba(37,99,235,0.3)";
+      const baseBorder  = "#2563eb";
+      const emptyColor  = "rgba(148,163,184,0.3)";
+      const emptyBorder = "#9ca3af";
+
+      const bgColors = monthHasData.map(ok => ok ? baseColor : emptyColor);
+      const borderColors = monthHasData.map(ok => ok ? baseBorder : emptyBorder);
+
+      new Chart(ctxMonth, {
+        type: "bar",
+        data: {
+          labels: monthLabels,
+          datasets: [{
+            label: "Cases",
+            data: monthTotals,
+            backgroundColor: bgColors,
+            borderColor: borderColors,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(148,163,184,0.3)" }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: function (context) {
+                  const idx = context.dataIndex;
+                  const hasData = monthHasData[idx];
+                  if (!hasData) {
+                    return "Data to be loaded";
+                  }
+                  const v = context.parsed.y || 0;
+                  return "Cases: " + v.toLocaleString();
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    // Top topics (horizontal bar)
+    if (topicLabels.length > 0) {
+      const ctxTopics = document.getElementById("topTopicsChart");
+      new Chart(ctxTopics, {
+        type: "bar",
+        data: {
+          labels: topicLabels,
+          datasets: [{
+            label: "Cases",
+            data: topicTotals,
+            backgroundColor: "rgba(37,99,235,0.2)",
+            borderColor: "#2563eb",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          indexAxis: "y",
+          responsive: true,
+          scales: {
+            x: {
+              beginAtZero: true,
+              grid: { color: "rgba(148,163,184,0.3)" }
+            },
+            y: {
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+
+    // Full-width seasonal peaks by topic (multi-series line/area chart)
+    if (seasonalRaw.length > 0 && monthLabels.length > 0) {
+      const ctxSeasonFull = document.getElementById("seasonalTopicsFullChart");
+
+      const palette = [
+        "#3b82f6", // blue
+        "#f97316", // orange
+        "#22c55e", // green
+        "#a855f7", // purple
+        "#0ea5e9"  // cyan
+      ];
+
+      const datasetsSeason = seasonalRaw.map((ds, idx) => {
+        const color = palette[idx % palette.length];
+        return {
+          label: ds.label,
+          data: ds.data,
+          borderColor: color,
+          backgroundColor: color + "33", // ~20% opacity
+          tension: 0.3,
+          fill: true,
+          pointRadius: 0,
+        };
+      });
+
+      new Chart(ctxSeasonFull, {
+        type: "line",
+        data: {
+          labels: monthLabels,
+          datasets: datasetsSeason
+        },
+        options: {
+          responsive: true,
+          scales: {
+            x: { grid: { display: false } },
+            y: {
+              beginAtZero: true,
+              grid: { color: "rgba(148,163,184,0.3)" }
+            }
+          },
+          plugins: {
+            legend: {
+              position: "top",
+              labels: {
+                boxWidth: 12,
+                boxHeight: 12
+              }
+            }
+          }
+        }
+      });
+    }
+  </script>
+</body>
+</html>
