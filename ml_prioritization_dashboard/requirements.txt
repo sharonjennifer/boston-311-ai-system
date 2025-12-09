@@ -4,6 +4,7 @@ pandas
 scikit-learn
 joblib
 matplotlib
+pyarrow
 
 # Model libraries
 xgboost
@@ -19,3 +20,4 @@ pandas-gbq
 
 # Web app (dashboard)
 flask
+gunicorn
