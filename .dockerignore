@@ -9,3 +9,6 @@ venv/
 secrets/
 .idea/
 .vscode/
+*.ipynb
+data
+secrets
