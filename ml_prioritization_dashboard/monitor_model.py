@@ -159,7 +159,8 @@ def fetch_recent_data(client: bigquery.Client):
         window_end.isoformat(),
         LOOKBACK_DAYS,
     )
-    df = client.query(query, job_config=job_config).to_dataframe()
+    df = client.query(query, job_config=job_config).to_dataframe(
+    create_bqstorage_client=False)
     logging.info("Fetched %d rows from last %d days", len(df), LOOKBACK_DAYS)
     return df, window_start, window_end
 
