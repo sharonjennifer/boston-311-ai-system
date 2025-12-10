@@ -24,7 +24,11 @@ import logging
 import subprocess
 from pathlib import Path
 
-from google.cloud import storage
+# Make GCS upload optional
+try:
+    from google.cloud import storage
+except ImportError:
+    storage = None  # We handle this gracefully below
 
 logging.basicConfig(
     level=logging.INFO,
@@ -34,7 +38,8 @@ logging.basicConfig(
 PROJECT_ID = os.getenv("B311_PROJECT_ID", "boston311-mlops")
 
 # Directory containing this script (ml_prioritization_dashboard/)
-BASE_DIR = Path(_file_).resolve().parent
+# NOTE: must be __file__, not _file_
+BASE_DIR = Path(__file__).resolve().parent
 
 # Where the training script writes the model (relative to this folder)
 LOCAL_MODEL_PATH = BASE_DIR / "models" / "priority_model.pkl"
@@ -53,6 +58,14 @@ def run_training_script() -> None:
 
     Adjust the command if train_priority_xgb.py expects CLI parameters.
     """
+    training_script = BASE_DIR / "train_priority_xgb.py"
+    if not training_script.exists():
+        raise FileNotFoundError(
+            f"Training script not found at {training_script}. "
+            "Make sure you run this from the ml_prioritization_dashboard folder "
+            "and that train_priority_xgb.py exists."
+        )
+
     logging.info("Starting model retraining via train_priority_xgb.py ...")
     logging.info("Working directory for training: %s", BASE_DIR)
 
@@ -77,6 +90,13 @@ def upload_model_to_gcs() -> None:
     """
     if not GCS_MODEL_BUCKET:
         logging.info("No B311_MODEL_BUCKET set. Skipping GCS upload.")
+        return
+
+    if storage is None:
+        logging.warning(
+            "google-cloud-storage is not installed, cannot upload model to GCS. "
+            "Install it with `pip install google-cloud-storage` if needed."
+        )
         return
 
     if not LOCAL_MODEL_PATH.exists():
