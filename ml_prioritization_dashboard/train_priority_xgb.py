@@ -11,7 +11,7 @@ from sklearn.preprocessing import OneHotEncoder
 from sklearn.pipeline import Pipeline
 from sklearn.metrics import ( roc_auc_score, average_precision_score, accuracy_score, precision_score, recall_score, f1_score, confusion_matrix, )
 import joblib
-import datetime
+import datetimef
 import tarfile
 from google.cloud import storage
 import matplotlib.pyplot as plt
@@ -41,7 +41,7 @@ PROJECT = "boston311-mlops"
 DATASET = "boston311_service"
 TRAIN_FEATURE_TABLE = os.getenv("TRAIN_FEATURE_TABLE", "tbl_train_features")
 
-MODEL_DIR = APP_DIR / "models"
+MODEL_DIR = Path(__file__).resolve().parent / "models"
 MODEL_DIR.mkdir(exist_ok=True)
 
 MODEL_NAME = "priority_xgb"
