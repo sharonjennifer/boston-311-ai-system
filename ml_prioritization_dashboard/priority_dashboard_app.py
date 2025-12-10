@@ -1349,7 +1349,18 @@ def analytics_page():
 
     return render_template("analytics.html", **ANALYTICS_CACHE)
 
-
+@app.route("/api/ping", methods=["GET"])
+def api_ping():
+    """
+    Lightweight health check endpoint for deployment verification.
+    Used in the assignment video and CI to confirm the service is live.
+    """
+    return {
+        "status": "ok",
+        "service": "b311-priority-dashboard",
+        "timestamp": dt.datetime.utcnow().isoformat() + "Z",
+    }
+    
 # -----------------------------------------------------------------------------
 # Cloud Run–friendly entrypoint
 # -----------------------------------------------------------------------------
