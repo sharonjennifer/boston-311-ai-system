@@ -229,6 +229,11 @@ To meet the model monitoring requirements, we implemented a scheduled monitoring
 - Returns:
   - **0** → model healthy  
   - **1** → decay detected (scheduler triggers retraining)
+- Also computes a simple **data drift signal**:
+  - Computes the positive class rate (class balance) in the monitoring window.
+  - Compares it to a baseline positive rate from training.
+  - If the absolute difference exceeds a threshold, it sets `drift_flag = TRUE`.
+
 
 This creates a persistent history of model performance and provides a clear automated signal to initiate the retraining workflow.
 
