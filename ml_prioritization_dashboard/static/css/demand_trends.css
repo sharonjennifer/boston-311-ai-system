@@ -1,0 +1,247 @@
+:root {
+  --bg-shell: #f5f7fb;
+  --bg-main: #f5f7fb;
+  --bg-card: #ffffff;
+  --bg-card-soft: #f8fafc;
+  --border-subtle: #e2e8f0;
+
+  --nav-bg: #021b3b;
+  --nav-bg-alt: #0b2648;
+  --nav-border: #0f2f5f;
+
+  --accent-blue: #2563eb;
+  --accent-red: #ff4c4c;
+
+  --text-main: #0f172a;
+  --text-muted: #6b7280;
+}
+
+body.dark-mode {
+  --bg-shell: #020617;
+  --bg-main: #020617;
+  --bg-card: #02081f;
+  --bg-card-soft: #020617;
+  --border-subtle: #1f2937;
+  --text-main: #e5e7eb;
+  --text-muted: #9ca3af;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: var(--bg-shell);
+  color: var(--text-main);
+}
+
+/* ---------- TOP NAV ---------- */
+
+.top-nav {
+  background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
+  border-bottom: 1px solid var(--nav-border);
+  color: #f9fafb;
+  padding: 10px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.top-nav-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.city-badge {
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.6);
+  padding: 4px 8px;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 600;
+}
+
+.top-nav-title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.top-nav-title-main {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.top-nav-title-sub {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.top-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+
+.env-pill {
+  border-radius: 999px;
+  padding: 3px 10px;
+  border: 1px solid rgba(148,163,184,0.5);
+  color: #e5e7eb;
+  background: rgba(15,23,42,0.4);
+}
+
+.system-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 4px 10px;
+  background: rgba(34,197,94,0.05);
+  border: 1px solid rgba(34,197,94,0.3);
+  color: #bbf7d0;
+  font-weight: 500;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
+}
+
+/* ---------- PAGE SHELL ---------- */
+
+.page-shell {
+  padding: 20px 32px 40px;
+}
+
+@media (max-width: 900px) {
+  .top-nav,
+  .page-shell {
+    padding-inline: 16px;
+  }
+}
+
+/* ---------- TABS ---------- */
+
+.page-tabs {
+  margin-bottom: 10px;
+  display: inline-flex;
+  border-radius: 999px;
+  background: #e5e7eb;
+  padding: 2px;
+  gap: 2px;
+}
+
+.page-tab {
+  padding: 5px 12px;
+  font-size: 11px;
+  border-radius: 999px;
+  text-decoration: none;
+  color: #374151;
+  font-weight: 500;
+}
+
+.page-tab-active {
+  background: #ffffff;
+  color: #111827;
+}
+
+/* ---------- HERO ---------- */
+
+.hero-card {
+  background: var(--bg-card);
+  border-radius: 16px;
+  padding: 18px 20px;
+  box-shadow: 0 10px 30px rgba(15,23,42,0.08);
+  border: 1px solid var(--border-subtle);
+  margin-bottom: 18px;
+}
+
+.hero-title {
+  font-size: 20px;
+  font-weight: 650;
+  margin-bottom: 4px;
+}
+
+.hero-subtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  max-width: 780px;
+}
+
+.hero-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+/* ---------- CHART LAYOUT ---------- */
+
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.charts-grid-top {
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---------- CHART CARDS ---------- */
+
+.chart-card {
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border-subtle);
+  padding: 12px 14px;
+  box-shadow: 0 6px 18px rgba(15,23,42,0.05);
+}
+
+.chart-card-full {
+  margin-top: 16px;
+}
+
+.chart-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.chart-subtitle {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.chart-empty {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 8px 0;
+}
+
+/* ---------- CANVAS ---------- */
+
+canvas {
+  width: 100%;
+  max-height: 260px;
+}
