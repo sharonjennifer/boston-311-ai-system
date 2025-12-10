@@ -9,299 +9,12 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    :root {
-      --bg-shell: #f5f7fb;
-      --bg-card: #ffffff;
-      --bg-card-soft: #f8fafc;
-      --border-subtle: #e2e8f0;
-
-      --nav-bg: #021b3b;
-      --nav-bg-alt: #0b2648;
-      --nav-border: #0f2f5f;
-
-      --accent-blue: #2563eb;
-      --accent-red: #ff4c4c;
-      --accent-orange: #f97316;
-      --accent-green: #16a34a;
-
-      --text-main: #0f172a;
-      --text-muted: #6b7280;
-    }
-
-    body.dark-mode {
-      --bg-shell: #020617;
-      --bg-card: #02081f;
-      --bg-card-soft: #020617;
-      --border-subtle: #1f2937;
-      --text-main: #e5e7eb;
-      --text-muted: #9ca3af;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg-shell);
-      color: var(--text-main);
-    }
-
-    /* Top nav */
-    .top-nav {
-      background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
-      border-bottom: 1px solid var(--nav-border);
-      color: #f9fafb;
-      padding: 10px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .top-nav-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .city-badge {
-      border-radius: 4px;
-      border: 1px solid rgba(255,255,255,0.6);
-      padding: 4px 8px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
-    }
-
-    .top-nav-title {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .top-nav-title-main {
-      font-size: 20px;
-      font-weight: 600;
-    }
-
-    .top-nav-title-sub {
-      font-size: 12px;
-      opacity: 0.85;
-    }
-
-    .top-nav-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 12px;
-    }
-
-    .env-pill {
-      border-radius: 999px;
-      padding: 3px 10px;
-      border: 1px solid rgba(148,163,184,0.5);
-      color: #e5e7eb;
-      background: rgba(15,23,42,0.4);
-    }
-
-    .system-status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border-radius: 999px;
-      padding: 4px 10px;
-      background: rgba(34,197,94,0.05);
-      border: 1px solid rgba(34,197,94,0.3);
-      color: #bbf7d0;
-      font-weight: 500;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
-    }
-
-    .page-shell {
-      padding: 20px 32px 40px;
-    }
-
-    @media (max-width: 768px) {
-      .top-nav, .page-shell { padding-inline: 16px; }
-    }
-
-    /* Tabs shared across pages */
-    .page-tabs {
-      margin-top: 10px;
-      display: inline-flex;
-      border-radius: 999px;
-      background: #e5e7eb;
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .page-tab {
-      padding: 5px 12px;
-      font-size: 11px;
-      border-radius: 999px;
-      text-decoration: none;
-      color: #374151;
-      font-weight: 500;
-    }
-
-    .page-tab-active {
-      background: #ffffff;
-      color: #111827;
-    }
-
-    /* Hero */
-    .hero-card {
-      background: var(--bg-card);
-      border-radius: 16px;
-      padding: 18px 20px;
-      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
-      border: 1px solid var(--border-subtle);
-      margin-top: 10px;
-      margin-bottom: 18px;
-      display: flex;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-
-    .hero-main-title {
-      font-size: 22px;
-      font-weight: 650;
-      margin-bottom: 4px;
-    }
-
-    .hero-subtitle {
-      font-size: 13px;
-      color: var(--text-muted);
-      max-width: 540px;
-    }
-
-    .hero-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    .hero-side {
-      min-width: 220px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      align-items: flex-end;
-      font-size: 11px;
-      color: var(--text-muted);
-      text-align: right;
-    }
-
-    /* KPI strip */
-    .kpi-strip {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-      margin-bottom: 16px;
-    }
-
-    .kpi-card {
-      flex: 1;
-      min-width: 170px;
-      background: var(--bg-card);
-      border-radius: 12px;
-      padding: 10px 14px;
-      border: 1px solid var(--border-subtle);
-      box-shadow: 0 6px 18px rgba(15,23,42,0.05);
-    }
-
-    .kpi-label {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-      color: var(--text-muted);
-    }
-
-    .kpi-value {
-      font-size: 22px;
-      font-weight: 700;
-      margin-top: 4px;
-    }
-
-    /* Table */
-    .panel {
-      background: var(--bg-card);
-      border-radius: 12px;
-      border: 1px solid var(--border-subtle);
-      box-shadow: 0 6px 18px rgba(15,23,42,0.05);
-      padding: 12px 14px;
-    }
-
-    .panel-title {
-      font-size: 14px;
-      font-weight: 600;
-      margin-bottom: 2px;
-    }
-
-    .panel-subtitle {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-bottom: 8px;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      font-size: 12px;
-    }
-
-    thead {
-      background: var(--bg-card-soft);
-    }
-
-    th, td {
-      padding: 8px 6px;
-      border-bottom: 1px solid var(--border-subtle);
-      text-align: left;
-    }
-
-    th {
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.6px;
-      color: var(--text-muted);
-    }
-
-    tbody tr:nth-child(even) {
-      background: #f9fafb;
-    }
-
-    .crit-pill {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 10px;
-      background: #fee2e2;
-      color: #b91c1c;
-    }
-
-    .score-pill {
-      display: inline-block;
-      padding: 2px 6px;
-      border-radius: 999px;
-      font-size: 10px;
-      background: #eff6ff;
-      color: #1d4ed8;
-    }
-  </style>
+  <!-- Page-specific CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/neighborhoods.css') }}">
 </head>
 <body>
 
+  <!-- Top nav -->
   <div class="top-nav">
     <div class="top-nav-left">
       <div class="city-badge">City of Boston</div>
@@ -329,7 +42,7 @@
       <a href="/neighborhoods" class="page-tab page-tab-active">Neighborhood performance</a>
       <a href="/sla-performance" class="page-tab">SLA performance</a>
       <a href="/demand-trends" class="page-tab">Demand trends</a>
-      <a href="/analytics" class="page-tab page-tab-active">Analytics</a>
+      <a href="/analytics" class="page-tab">Analytics</a>
     </div>
 
     <!-- Hero -->
@@ -352,6 +65,7 @@
       </div>
     </div>
 
+    {# KPIs #}
     {% set total_neigh = perf_rows|length %}
     {% set total_open = perf_rows | map(attribute='total_open') | sum %}
     {% set total_crit  = perf_rows | map(attribute='num_crit') | sum %}
@@ -371,6 +85,7 @@
       </div>
     </div>
 
+    <!-- Table panel -->
     <div class="panel">
       <div class="panel-title">Neighborhood comparison</div>
       <div class="panel-subtitle">
@@ -378,11 +93,10 @@
       </div>
 
       {% if perf_rows|length == 0 %}
-        <p style="font-size:12px;color:var(--text-muted);">No data available.</p>
+        <p class="no-data-text">No data available.</p>
       {% else %}
-        {# sort by avg_score descending #}
         {% set rows_sorted = perf_rows|sort(attribute='avg_score', reverse=True) %}
-        <table>
+        <table class="neighborhood-table">
           <thead>
             <tr>
               <th>Neighborhood</th>
@@ -398,8 +112,12 @@
               <tr>
                 <td>{{ r.neighborhood or "Unknown / missing neighborhood" }}</td>
                 <td>{{ r.total_open }}</td>
-                <td><span class="crit-pill">{{ r.num_crit }}</span></td>
-                <td><span class="score-pill">{{ "%.3f"|format(r.avg_score) }}</span></td>
+                <td>
+                  <span class="crit-pill">{{ r.num_crit }}</span>
+                </td>
+                <td>
+                  <span class="score-pill">{{ "%.3f"|format(r.avg_score) }}</span>
+                </td>
                 <td>{{ "%.1f"|format(crit_share) }}%</td>
               </tr>
             {% endfor %}
@@ -409,11 +127,7 @@
     </div>
   </div>
 
-  <script>
-    // Reuse dark mode preference
-    if (localStorage.getItem("b311_dark") === "true") {
-      document.body.classList.add("dark-mode");
-    }
-  </script>
+  <!-- Page JS -->
+  <script src="{{ url_for('static', filename='js/neighborhoods.js') }}" defer></script>
 </body>
 </html>

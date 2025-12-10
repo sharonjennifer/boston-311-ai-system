@@ -9,235 +9,10 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <style>
-    :root {
-      --bg-shell: #f5f7fb;
-      --bg-card: #ffffff;
-      --bg-card-soft: #f8fafc;
-      --border-subtle: #e2e8f0;
+  <!-- Page CSS -->
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
 
-      --nav-bg: #021b3b;
-      --nav-bg-alt: #0b2648;
-      --nav-border: #0f2f5f;
-
-      --accent-blue: #2563eb;
-      --accent-green: #16a34a;
-      --accent-orange: #f97316;
-      --accent-purple: #8b5cf6;
-
-      --text-main: #0f172a;
-      --text-muted: #6b7280;
-    }
-
-    body.dark-mode {
-      --bg-shell: #020617;
-      --bg-card: #02081f;
-      --bg-card-soft: #020617;
-      --border-subtle: #1f2937;
-      --text-main: #e5e7eb;
-      --text-muted: #9ca3af;
-    }
-
-    * { box-sizing: border-box; }
-
-    body {
-      margin: 0;
-      padding: 0;
-      font-family: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: var(--bg-shell);
-      color: var(--text-main);
-    }
-
-    /* Top nav */
-    .top-nav {
-      background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
-      border-bottom: 1px solid var(--nav-border);
-      color: #f9fafb;
-      padding: 10px 32px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .top-nav-left {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    .city-badge {
-      border-radius: 4px;
-      border: 1px solid rgba(255,255,255,0.6);
-      padding: 4px 8px;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      font-weight: 600;
-    }
-
-    .top-nav-title {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-    }
-
-    .top-nav-title-main {
-      font-size: 20px;
-      font-weight: 600;
-    }
-
-    .top-nav-title-sub {
-      font-size: 12px;
-      opacity: 0.85;
-    }
-
-    .top-nav-right {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 12px;
-    }
-
-    .env-pill {
-      border-radius: 999px;
-      padding: 3px 10px;
-      border: 1px solid rgba(148,163,184,0.5);
-      color: #e5e7eb;
-      background: rgba(15,23,42,0.4);
-    }
-
-    .system-status-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      border-radius: 999px;
-      padding: 4px 10px;
-      background: rgba(34,197,94,0.05);
-      border: 1px solid rgba(34,197,94,0.3);
-      color: #bbf7d0;
-      font-weight: 500;
-    }
-
-    .status-dot {
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
-    }
-
-    .page-shell {
-      padding: 20px 32px 40px;
-    }
-
-    @media (max-width: 900px) {
-      .top-nav, .page-shell { padding-inline: 16px; }
-    }
-
-    /* Tabs */
-    .page-tabs {
-      margin-top: 10px;
-      display: inline-flex;
-      border-radius: 999px;
-      background: #e5e7eb;
-      padding: 2px;
-      gap: 2px;
-    }
-
-    .page-tab {
-      padding: 5px 12px;
-      font-size: 11px;
-      border-radius: 999px;
-      text-decoration: none;
-      color: #374151;
-      font-weight: 500;
-    }
-
-    .page-tab-active {
-      background: #ffffff;
-      color: #111827;
-    }
-
-    /* Hero */
-    .hero-card {
-      background: var(--bg-card);
-      border-radius: 16px;
-      padding: 18px 20px;
-      box-shadow: 0 10px 30px rgba(15,23,42,0.08);
-      border: 1px solid var(--border-subtle);
-      margin-top: 10px;
-      margin-bottom: 18px;
-    }
-
-    .hero-main-title {
-      font-size: 22px;
-      font-weight: 650;
-      margin-bottom: 4px;
-    }
-
-    .hero-subtitle {
-      font-size: 13px;
-      color: var(--text-muted);
-      max-width: 700px;
-    }
-
-    .hero-meta {
-      font-size: 11px;
-      color: var(--text-muted);
-      margin-top: 6px;
-    }
-
-    /* Chart layout */
-    .charts-grid {
-      display: grid;
-      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-      gap: 16px;
-      margin-bottom: 16px;
-    }
-
-    @media (max-width: 900px) {
-      .charts-grid {
-        grid-template-columns: minmax(0, 1fr);
-      }
-    }
-
-    .chart-card {
-      background: var(--bg-card);
-      border-radius: 14px;
-      border: 1px solid var(--border-subtle);
-      padding: 12px 14px;
-      box-shadow: 0 6px 18px rgba(15,23,42,0.05);
-    }
-
-    .chart-header {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      margin-bottom: 8px;
-    }
-
-    .chart-title {
-      font-size: 14px;
-      font-weight: 600;
-    }
-
-    .chart-subtitle {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .chart-empty {
-      font-size: 12px;
-      color: var(--text-muted);
-      padding: 8px 0;
-    }
-
-    canvas {
-      width: 100%;
-      max-height: 260px;
-    }
-  </style>
-
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -273,7 +48,7 @@
 
     <!-- Hero -->
     <div class="hero-card">
-      <div class="hero-main-title"> Analytics</div>
+      <div class="hero-main-title">Analytics</div>
       <div class="hero-subtitle">
         Focused on where 311 demand is coming from and how residents report issues.
         Use this for hyper-local planning, outreach campaigns, and source/channel optimization.
@@ -377,194 +152,27 @@
     </div>
   </div>
 
-  <script>
-    // Dark mode from other pages
-    if (localStorage.getItem("b311_dark") === "true") {
-      document.body.classList.add("dark-mode");
-    }
-
-    const neighLabels   = {{ neigh_labels   | tojson | safe }};
-    const neighCounts   = {{ neigh_counts   | tojson | safe }};
-    const deptLabels    = {{ dept_labels    | tojson | safe }};
-    const deptCounts    = {{ dept_counts    | tojson | safe }};
-    const reasonLabels  = {{ reason_labels  | tojson | safe }};
-    const reasonCounts  = {{ reason_counts  | tojson | safe }};
-    const slaDeptLabels = {{ sla_dept_labels | tojson | safe }};
-    const slaDeptRates  = {{ sla_dept_rates  | tojson | safe }};
-    const srcLabels     = {{ src_labels     | tojson | safe }};
-    const srcCounts     = {{ src_counts     | tojson | safe }};
-    const srcArtLabels  = {{ src_art_labels | tojson | safe }};
-    const srcArtHours   = {{ src_art_hours  | tojson | safe }};
-
-    // 1. Neighborhood cases (horizontal bar)
-    if (neighLabels.length > 0) {
-      new Chart(document.getElementById("neighCasesChart"), {
-        type: "bar",
-        data: {
-          labels: neighLabels,
-          datasets: [{
-            label: "Cases",
-            data: neighCounts,
-            backgroundColor: "rgba(37,99,235,0.2)",
-            borderColor: "#2563eb",
-            borderWidth: 1
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              beginAtZero: true,
-              grid: { color: "rgba(148,163,184,0.3)" }
-            },
-            y: { grid: { display: false } }
-          }
-        }
-      });
-    }
-
-    // 2. Department cases (vertical bar)
-    if (deptLabels.length > 0) {
-      new Chart(document.getElementById("deptCasesChart"), {
-        type: "bar",
-        data: {
-          labels: deptLabels,
-          datasets: [{
-            label: "Cases",
-            data: deptCounts,
-            backgroundColor: "rgba(56,189,248,0.25)",
-            borderColor: "#0ea5e9",
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false } },
-            y: {
-              beginAtZero: true,
-              grid: { color: "rgba(148,163,184,0.3)" }
-            }
-          }
-        }
-      });
-    }
-
-    // 3. Reasons (horizontal bar)
-    if (reasonLabels.length > 0) {
-      new Chart(document.getElementById("reasonCasesChart"), {
-        type: "bar",
-        data: {
-          labels: reasonLabels,
-          datasets: [{
-            label: "Cases",
-            data: reasonCounts,
-            backgroundColor: "rgba(249,115,22,0.25)",
-            borderColor: "#f97316",
-            borderWidth: 1
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              beginAtZero: true,
-              grid: { color: "rgba(148,163,184,0.3)" }
-            },
-            y: { grid: { display: false } }
-          }
-        }
-      });
-    }
-
-    // 4. SLA by department (horizontal bar, %)
-    if (slaDeptLabels.length > 0) {
-      new Chart(document.getElementById("slaDeptChart"), {
-        type: "bar",
-        data: {
-          labels: slaDeptLabels,
-          datasets: [{
-            label: "SLA compliance (%)",
-            data: slaDeptRates,
-            backgroundColor: "rgba(22,163,74,0.25)",
-            borderColor: "#16a34a",
-            borderWidth: 1
-          }]
-        },
-        options: {
-          indexAxis: "y",
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              beginAtZero: true,
-              max: 100,
-              ticks: {
-                callback: (value) => value + "%"
-              },
-              grid: { color: "rgba(148,163,184,0.3)" }
-            },
-            y: { grid: { display: false } }
-          }
-        }
-      });
-    }
-
-    // 5. Volume by source (doughnut)
-    if (srcLabels.length > 0) {
-      new Chart(document.getElementById("sourceVolumeChart"), {
-        type: "doughnut",
-        data: {
-          labels: srcLabels,
-          datasets: [{
-            data: srcCounts,
-            backgroundColor: [
-              "#3b82f6", "#22c55e", "#f97316", "#a855f7", "#0ea5e9",
-              "#eab308", "#ec4899", "#10b981", "#facc15", "#6366f1"
-            ]
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: {
-            legend: { position: "right" }
-          }
-        }
-      });
-    }
-
-    // 6. Avg resolution time by source (bar)
-    if (srcArtLabels.length > 0) {
-      new Chart(document.getElementById("sourceArtChart"), {
-        type: "bar",
-        data: {
-          labels: srcArtLabels,
-          datasets: [{
-            label: "Avg resolution time (hrs)",
-            data: srcArtHours,
-            backgroundColor: "rgba(139,92,246,0.25)",
-            borderColor: "#8b5cf6",
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: { grid: { display: false } },
-            y: {
-              beginAtZero: true,
-              grid: { color: "rgba(148,163,184,0.3)" }
-            }
-          }
-        }
-      });
-    }
+  <!-- Inline data blob -->
+  <script id="analytics-data" type="application/json">
+    {{
+      {
+        "neighLabels":   neigh_labels   or [],
+        "neighCounts":   neigh_counts   or [],
+        "deptLabels":    dept_labels    or [],
+        "deptCounts":    dept_counts    or [],
+        "reasonLabels":  reason_labels  or [],
+        "reasonCounts":  reason_counts  or [],
+        "slaDeptLabels": sla_dept_labels or [],
+        "slaDeptRates":  sla_dept_rates  or [],
+        "srcLabels":     src_labels     or [],
+        "srcCounts":     src_counts     or [],
+        "srcArtLabels":  src_art_labels or [],
+        "srcArtHours":   src_art_hours  or []
+      } | tojson | safe
+    }}
   </script>
+
+  <!-- Page JS -->
+  <script src="{{ url_for('static', filename='js/analytics.js') }}" defer></script>
 </body>
 </html>
