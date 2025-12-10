@@ -21,3 +21,4 @@ pandas-gbq
 # Web app (dashboard)
 flask
 gunicorn
+google-cloud-aiplatform
