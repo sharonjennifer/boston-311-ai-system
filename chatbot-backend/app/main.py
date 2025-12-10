@@ -54,3 +54,25 @@ def clear_session(session_id: str):
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "Boston 311 Chatbot"}
+
+@app.get("/cache/stats")
+def get_cache_stats():
+    """Get cache statistics"""
+    from app.query_cache import get_query_cache
+    cache = get_query_cache()
+    return cache.get_stats()
+
+@app.post("/cache/clear")
+def clear_cache():
+    """Clear the query cache"""
+    from app.query_cache import get_query_cache
+    cache = get_query_cache()
+    cache.clear()
+    return {"message": "Cache cleared successfully"}
+
+@app.get("/cache/queries")
+def get_cached_queries():
+    """See what queries are currently cached"""
+    from app.query_cache import get_query_cache
+    cache = get_query_cache()
+    return {"cached_queries": cache.get_cached_queries()}

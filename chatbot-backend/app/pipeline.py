@@ -1,5 +1,5 @@
 """
-Enhanced Pipeline with Intelligent Routing
+Enhanced Pipeline with Intelligent Routing and Query Caching
 """
 import os
 import sys
@@ -132,26 +132,39 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         
         return error_msg, None, []
 
-    # 4. Run SQL on BigQuery
-    try:
-        df = bq.query(sql_query).to_dataframe()
-        logger.info("BigQuery output %s", df)
-    except Exception as e:
-        logger.exception("BigQuery execution failed")
-        error_msg = (
-            "I tried to run the query in BigQuery, but something went wrong on the data side. "
-            "Please try again in a moment or ask a simpler question."
-        )
-        
-        if session_id:
-            conv_manager.add_turn(session_id, question, error_msg, sql_query, None)
-        
-        return error_msg, sql_query, []
+    # 4. Check cache before running query
+    from app.query_cache import get_query_cache
+    cache = get_query_cache()
+    
+    cached_records = cache.get(sql_query)
+    if cached_records is not None:
+        records = cached_records
+        logger.info(f"Using cached results ({len(records)} rows)")
+    else:
+        # 4a. Run SQL on BigQuery
+        try:
+            df = bq.query(sql_query).to_dataframe()
+            logger.info("BigQuery output %s", df)
+        except Exception as e:
+            logger.exception("BigQuery execution failed")
+            error_msg = (
+                "I tried to run the query in BigQuery, but something went wrong on the data side. "
+                "Please try again in a moment or ask a simpler question."
+            )
+            
+            if session_id:
+                conv_manager.add_turn(session_id, question, error_msg, sql_query, None)
+            
+            return error_msg, sql_query, []
 
-    # Convert to JSON-serializable format
-    records = json.loads(df.to_json(orient="records"))
+        # Convert to JSON-serializable format
+        records = json.loads(df.to_json(orient="records"))
+        
+        # Cache the results
+        cache.set(sql_query, records)
+        logger.info(f"Cached query results ({len(records)} rows)")
 
-    # 4a. Explicit "no data found" case
+    # 5. Explicit "no data found" case
     if not records:
         logger.info("BigQuery returned 0 rows.")
         no_data_msg = (
@@ -163,7 +176,7 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         
         return no_data_msg, sql_query, []
 
-    # 5. Turn results into a natural-language answer (Gemini)
+    # 6. Turn results into a natural-language answer (Gemini)
     try:
         answer = generate_answer(question, sql_query, records)
         logger.info("User output %s", answer)
