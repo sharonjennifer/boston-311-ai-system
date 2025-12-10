@@ -1,0 +1,39 @@
+name: Deploy Boston 311 Priority Dashboard
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - "ml_prioritization_dashboard/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.B311_DASHBOARD_SA_KEY }}'
+
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: boston311-mlops
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker us-central1-docker.pkg.dev
+
+      - name: Build & Deploy to Cloud Run
+        run: |
+          cd ml_prioritization_dashboard
+          chmod +x deploy_cloud_run.sh
+          ./deploy_cloud_run.sh
