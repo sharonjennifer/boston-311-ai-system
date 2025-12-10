@@ -4,6 +4,7 @@ from app.pipeline import run_pipeline
 from app.schemas import ChatRequest, ChatResponse
 import uuid
 from app.conversation_manager import get_conversation_manager
+from app.monitoring import MonitoringMiddleware
 
 app = FastAPI(
     title="Boston 311 SQL Chatbot",
@@ -17,6 +18,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(MonitoringMiddleware)
 
 @app.on_event("startup")
 def startup_event():
@@ -76,3 +79,39 @@ def get_cached_queries():
     from app.query_cache import get_query_cache
     cache = get_query_cache()
     return {"cached_queries": cache.get_cached_queries()}
+
+@app.get("/admin/metrics")
+def get_admin_metrics():
+    """Get all monitoring metrics"""
+    from app.monitoring import get_metrics_collector
+    metrics = get_metrics_collector()
+    return metrics.get_summary_stats()
+
+@app.get("/admin/popular-questions")
+def get_popular_questions():
+    """Get most frequently asked questions"""
+    from app.monitoring import get_metrics_collector
+    metrics = get_metrics_collector()
+    return {"popular_questions": metrics.get_popular_questions(top_n=10)}
+
+@app.get("/admin/recent-requests")
+def get_recent_requests(n: int = 50):
+    """Get recent requests"""
+    from app.monitoring import get_metrics_collector
+    metrics = get_metrics_collector()
+    return {"recent_requests": metrics.get_recent_requests(n=n)}
+
+@app.get("/admin/slow-queries")
+def get_slow_queries():
+    """Get slow queries"""
+    from app.monitoring import get_metrics_collector
+    metrics = get_metrics_collector()
+    return {"slow_queries": metrics.get_slow_queries()}
+
+@app.get("/admin/dashboard")
+def admin_dashboard():
+    """Serve monitoring dashboard HTML"""
+    from fastapi.responses import FileResponse
+    from pathlib import Path
+    dashboard_path = Path(__file__).parent.parent / "templates" / "dashboard.html"
+    return FileResponse(dashboard_path)

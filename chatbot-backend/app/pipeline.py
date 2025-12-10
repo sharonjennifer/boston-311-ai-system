@@ -1,5 +1,5 @@
 """
-Enhanced Pipeline with Intelligent Routing and Query Caching
+Enhanced Pipeline with Intelligent Routing, Caching, and Monitoring
 """
 import os
 import sys
@@ -40,7 +40,7 @@ bq = bigquery.Client(project=settings.PROJECT_ID)
 
 def run_pipeline(question: str, session_id: Optional[str] = None):
     """
-    Enhanced pipeline with intelligent routing
+    Enhanced pipeline with intelligent routing, caching, and monitoring
     
     Flow:
     1. Route question (topic relevance + query type)
@@ -50,6 +50,7 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
     """
     sql_query = None
     records = []
+    cached_records = None
     
     # Get conversation manager
     conv_manager = get_conversation_manager()
@@ -69,6 +70,13 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         off_topic_message = route_metadata.get("message", 
             "I can only help with Boston 311 service requests.")
         
+        # Track metrics
+        try:
+            from app.monitoring import get_metrics_collector
+            get_metrics_collector().requests_by_route_type["off_topic"] += 1
+        except: 
+            pass
+        
         if session_id:
             conv_manager.add_turn(session_id, question, off_topic_message, None, None)
         
@@ -79,15 +87,29 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         logger.info("[Pipeline] Routing to FAQ handler")
         procedural_answer = handle_procedural_question(question)
         
+        # Track metrics
+        try:
+            from app.monitoring import get_metrics_collector
+            get_metrics_collector().requests_by_route_type["procedural"] += 1
+        except: 
+            pass
+        
         if session_id:
             conv_manager.add_turn(session_id, question, procedural_answer, None, None)
         
         return procedural_answer, None, []
     
     # ========================================================================
-    # DATA QUERY PIPELINE (existing logic)
+    # DATA QUERY PIPELINE
     # ========================================================================
     logger.info("[Pipeline] Routing to data query pipeline")
+    
+    # Track metrics for data query
+    try:
+        from app.monitoring import get_metrics_collector
+        get_metrics_collector().requests_by_route_type["data_query"] += 1
+    except: 
+        pass
 
     # 1. Parse user question with context
     try:
