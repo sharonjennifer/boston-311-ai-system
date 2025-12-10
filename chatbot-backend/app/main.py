@@ -7,7 +7,7 @@ from app.conversation_manager import get_conversation_manager
 
 app = FastAPI(
     title="Boston 311 SQL Chatbot",
-    version="1.0.0",
+    version="2.0.0",
 )
 
 app.add_middleware(
@@ -18,12 +18,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.on_event("startup")
 def startup_event():
     from rag.vector_store import get_retriever
+    from app.faq_retriever import get_faq_retriever
+    
     get_retriever(force_rebuild=False)
-
+    get_faq_retriever(force_rebuild=False)
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
