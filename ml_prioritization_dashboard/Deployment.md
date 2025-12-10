@@ -203,3 +203,109 @@ with:
 ```
 
 Now, each push to `main` triggers a full **build + deploy** to Cloud Run.
+
+---
+
+## 7. Model Monitoring
+
+To meet the model monitoring requirements, we implemented a scheduled monitoring script:
+
+**File:** `monitor_model.py`  
+**Location:** `ml_prioritization_dashboard/`
+
+### What the script does
+
+- Pulls recent labeled predictions from BigQuery:
+  - `boston311-mlops.boston311_service.cases_ranking_ml`
+- Uses a rolling evaluation window (default: last 30 days).
+- Computes performance metrics:
+  - **AUC** – measures ranking quality  
+  - **RMSE** – measures calibration error  
+- Writes a monitoring record into a dedicated table:
+  - `boston311-mlops.monitoring.priority_model_metrics`
+- Evaluates thresholds:
+  - `AUC < 0.80` → model decay  
+  - `RMSE > 0.30` → model decay  
+- Returns:
+  - **0** → model healthy  
+  - **1** → decay detected (scheduler triggers retraining)
+
+This creates a persistent history of model performance and provides a clear automated signal to initiate the retraining workflow.
+
+### Monitoring table schema
+
+The table created automatically contains:
+
+| Column          | Type      | Description                                   |
+|-----------------|-----------|-----------------------------------------------|
+| run_timestamp   | TIMESTAMP | Time the monitoring job ran                   |
+| window_start    | TIMESTAMP | Lookback window start                         |
+| window_end      | TIMESTAMP | Lookback window end                           |
+| n_rows          | INTEGER   | Number of labeled predictions evaluated       |
+| auc             | FLOAT     | AUC score                                     |
+| rmse            | FLOAT     | RMSE score                                    |
+| decay_flag      | BOOL      | Whether thresholds were violated              |
+| notes           | STRING    | Additional context                            |
+
+### When the window has no data
+
+The script handles this safely by writing a monitoring row with:
+
+- `n_rows = 0`
+- `auc = NULL`
+- `rmse = NULL`
+- `decay_flag = FALSE`
+
+This commonly occurs when a scoring pipeline has not run recently.
+
+---
+
+## 8. Model Retraining
+
+When `monitor_model.py` detects decay (exit code `1`), a retraining job can be triggered.
+
+**File:** `retrain_model.py`  
+**Location:** `ml_prioritization_dashboard/`
+
+### What the script does
+
+1. **Calls your existing training pipeline**
+   - Executes `train_priority_xgb.py`
+   - Loads training data from BigQuery
+   - Produces a new `models/priority_model.pkl`
+
+2. **Optionally uploads the model to GCS**
+   - If environment variables `B311_MODEL_BUCKET` and `B311_MODEL_BLOB` are set:
+     - The retrained model is uploaded for storage or versioning.
+
+3. **Leaves a hook for CI/CD**
+   - A real system could trigger Cloud Build or GitHub Actions automatically.
+   - For this course project, the trigger step is documented but not executed.
+
+4. **Exit codes**
+   - `0` → retraining succeeded  
+   - `1` → retraining failed  
+
+This gives a complete loop:
+
+> **Monitor → Detect Decay → Retrain → Redeploy via CI/CD**
+
+---
+
+## 9. Automated Monitoring + Retraining Loop (High-Level)
+
+1. **Daily Schedule**
+   - Cloud Scheduler or Airflow runs `monitor_model.py`.
+
+2. **Monitoring Decision**
+   - If `decay_flag = FALSE`: nothing else happens.  
+   - If `decay_flag = TRUE` or exit code = 1:
+     - `retrain_model.py` is executed.
+
+3. **Retrain**
+   - New model saved to `models/priority_model.pkl`.
+
+4. **CI/CD Integration (Documented)**
+   - GitHub Actions detects updated model OR a Cloud Build trigger is used.
+   - Container is rebuilt using `deploy_cloud_run.sh`.
+   - Cloud Run receives the updated model automatically.
