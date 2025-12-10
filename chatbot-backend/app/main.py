@@ -115,3 +115,21 @@ def admin_dashboard():
     from pathlib import Path
     dashboard_path = Path(__file__).parent.parent / "templates" / "dashboard.html"
     return FileResponse(dashboard_path)
+
+@app.get("/admin/alerts")
+def get_alerts():
+    """Get active alerts"""
+    from app.alerts import get_alert_manager
+    alert_mgr = get_alert_manager()
+    return {
+        "active_alerts": alert_mgr.get_active_alerts(),
+        "alert_history": alert_mgr.get_alert_history()
+    }
+
+@app.post("/admin/alerts/{alert_type}/acknowledge")
+def acknowledge_alert(alert_type: str):
+    """Acknowledge an alert"""
+    from app.alerts import get_alert_manager
+    alert_mgr = get_alert_manager()
+    alert_mgr.acknowledge_alert(alert_type)
+    return {"message": f"Alert {alert_type} acknowledged"}

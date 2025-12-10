@@ -103,6 +103,13 @@ class MetricsCollector:
                 "error": error,
                 "sql": sql[:200] if sql else None
             })
+        # Check alert thresholds periodically
+        if self.total_requests % 50 == 0:
+            try:
+                from app.alerts import check_and_alert
+                check_and_alert(self.get_summary_stats())
+            except Exception as e:
+                logger.error(f"Alert check failed: {e}")
     
     def get_summary_stats(self) -> dict:
         """Get summary statistics"""

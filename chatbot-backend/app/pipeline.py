@@ -6,6 +6,7 @@ import sys
 import logging
 from pathlib import Path
 import json
+import uuid
 
 from dotenv import load_dotenv
 from google.cloud import bigquery
@@ -80,6 +81,25 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         if session_id:
             conv_manager.add_turn(session_id, question, off_topic_message, None, None)
         
+        # Write metrics to BigQuery
+        try:
+            from app.metrics_writer import get_metrics_writer
+            metrics_writer = get_metrics_writer()
+            metrics_writer.add_metric(
+                request_id=str(uuid.uuid4()),
+                endpoint="/chat",
+                question=question,
+                route_type="off_topic",
+                is_cached=False,
+                sql_query=None,
+                latency_ms=0,
+                status_code=200,
+                result_count=0,
+                session_id=session_id
+            )
+        except Exception as e:
+            logger.error(f"Failed to write metrics: {e}")
+        
         return off_topic_message, None, []
     
     # Handle PROCEDURAL questions (FAQ)
@@ -96,6 +116,25 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
         
         if session_id:
             conv_manager.add_turn(session_id, question, procedural_answer, None, None)
+        
+        # Write metrics to BigQuery
+        try:
+            from app.metrics_writer import get_metrics_writer
+            metrics_writer = get_metrics_writer()
+            metrics_writer.add_metric(
+                request_id=str(uuid.uuid4()),
+                endpoint="/chat",
+                question=question,
+                route_type="procedural",
+                is_cached=False,
+                sql_query=None,
+                latency_ms=0,
+                status_code=200,
+                result_count=0,
+                session_id=session_id
+            )
+        except Exception as e:
+            logger.error(f"Failed to write metrics: {e}")
         
         return procedural_answer, None, []
     
@@ -211,5 +250,26 @@ def run_pipeline(question: str, session_id: Optional[str] = None):
     # Store conversation turn if session exists
     if session_id:
         conv_manager.add_turn(session_id, question, answer, sql_query, records)
+    
+    # Write metrics to BigQuery
+    try:
+        from app.metrics_writer import get_metrics_writer
+        metrics_writer = get_metrics_writer()
+        metrics_writer.add_metric(
+            request_id=str(uuid.uuid4()),
+            endpoint="/chat",
+            question=question,
+            route_type=route_type,
+            is_cached=(cached_records is not None),
+            sql_query=sql_query,
+            latency_ms=0,  # Calculated by middleware
+            status_code=200,
+            result_count=len(records) if records else 0,
+            error_type=None,
+            error_message=None,
+            session_id=session_id
+        )
+    except Exception as e:
+        logger.error(f"Failed to write metrics: {e}")
     
     return answer, sql_query, records
