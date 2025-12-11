@@ -264,53 +264,68 @@ The script handles this safely by writing a monitoring row with:
 This commonly occurs when a scoring pipeline has not run recently.
 
 ---
-
 ## 8. Model Retraining
 
-When `monitor_model.py` detects decay (exit code `1`), a retraining job can be triggered.
+When `monitor_model.py` detects decay or drift (exit code `1`), a retraining job is triggered.
 
 **File:** `retrain_model.py`  
 **Location:** `ml_prioritization_dashboard/`
 
 ### What the script does
 
-1. **Calls your existing training pipeline**
+1. **Calls the existing training pipeline**
    - Executes `train_priority_xgb.py`
-   - Loads training data from BigQuery
-   - Produces a new `models/priority_model.pkl`
+   - Loads fresh training data from BigQuery
+   - Trains a new XGBoost priority model
+   - Writes an updated model artifact to:
+
+     ```text
+     ml_prioritization_dashboard/models/priority_model.pkl
+     ```
 
 2. **Optionally uploads the model to GCS**
    - If environment variables `B311_MODEL_BUCKET` and `B311_MODEL_BLOB` are set:
-     - The retrained model is uploaded for storage or versioning.
+     - The retrained model is uploaded to a Cloud Storage bucket for centralized storage and versioning, e.g.:
 
-3. **Leaves a hook for CI/CD**
-   - A real system could trigger Cloud Build or GitHub Actions automatically.
-   - For this course project, the trigger step is documented but not executed.
+       ```text
+       gs://<B311_MODEL_BUCKET>/<B311_MODEL_BLOB>
+       ```
+
+3. **CI/CD redeployment hook**
+   - Once the new model is written (and optionally uploaded), it is ready to be picked up by the deployment pipeline.
+   - A CI/CD workflow (GitHub Actions) can rebuild the dashboard container image using `deploy_cloud_run.sh` so that Cloud Run serves the updated `priority_model.pkl`.
 
 4. **Exit codes**
-   - `0` → retraining succeeded  
+
+   - `0` → retraining completed successfully  
    - `1` → retraining failed  
 
 This gives a complete loop:
 
-> **Monitor → Detect Decay → Retrain → Redeploy via CI/CD**
+> **Monitor → Detect Decay/Drift → Retrain → Publish Model → Redeploy via CI/CD**
 
 ---
 
-## 9. Automated Monitoring + Retraining Loop (High-Level)
+## 9. Automated Monitoring + Retraining Loop
 
-1. **Daily Schedule**
-   - Cloud Scheduler or Airflow runs `monitor_model.py`.
+1. **Scheduled or On-Demand Monitoring**
+   - A scheduler (e.g., Cloud Scheduler / Airflow) or a GitHub Actions workflow runs `monitor_model.py` on a regular cadence.
 
 2. **Monitoring Decision**
-   - If `decay_flag = FALSE`: nothing else happens.  
-   - If `decay_flag = TRUE` or exit code = 1:
-     - `retrain_model.py` is executed.
+   - If the model is healthy:
+     - `decay_flag = FALSE` and `drift_flag = FALSE`
+     - Exit code `0` → no further action.
+   - If decay or drift is detected:
+     - `decay_flag = TRUE` and/or `drift_flag = TRUE`
+     - Exit code `1` → `retrain_model.py` is invoked.
 
 3. **Retrain**
-   - New model saved to `models/priority_model.pkl`.
+   - `retrain_model.py` runs the full training pipeline via `train_priority_xgb.py`.
+   - A new model is saved to `models/priority_model.pkl`.
+   - Optionally, the model is pushed to a GCS bucket for versioned storage.
 
-4. **CI/CD Integration (Documented)**
-   - GitHub Actions detects updated model OR a Cloud Build trigger is used.
-   - Container is rebuilt using `deploy_cloud_run.sh`.
-   - Cloud Run receives the updated model automatically.
+4. **CI/CD Integration**
+   - A deployment workflow (GitHub Actions) rebuilds the dashboard container image using the updated model.
+   - `deploy_cloud_run.sh` is executed as part of this pipeline.
+   - Cloud Run is updated with the new image, so the dashboard immediately starts using the latest model in production.
+
