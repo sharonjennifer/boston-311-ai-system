@@ -41,19 +41,9 @@ endpoint_path = client.endpoint_path(
 
 logger.info("Using SQLCoder endpoint: %s", endpoint_path)
 
-
-
-def generate_sql(question: str, keywords: list, context: str = "") -> str:
-
-    # Build context-aware question if context exists
-    full_question = question
-    if context:
-        full_question = f"{context}\n\nCurrent question: {question}"
-        logger.debug("Using conversation context for SQL generation")
-    
-    prompt = build_prompt(full_question, keywords)
+def generate_sql(question, keywords):
+    prompt = build_prompt(question, keywords)
     logger.debug("SQL prompt sent to endpoint:\n%s", prompt)
-
 
     request_body = {
         "model": "openapi",

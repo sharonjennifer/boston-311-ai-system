@@ -39,7 +39,6 @@ Categories to extract:
 - case_status: "Open" or "Closed" only.
 - source: How the request was made (e.g., "App", "Phone", "Citizen Connect").
 - reason: Broad categories (e.g., "Sanitation", "Street Lights", "Trees").
-- type: Specific complaint types (e.g., "Missed Trash", "Pothole", "Needle Pickup").
 - on_time: Whether the cases were resolved "ONTIME" or "OVERDUE".
 
 Rules:
@@ -47,6 +46,7 @@ Rules:
 2. Do NOT try to guess valid database values. Extract the exact words the user used (e.g., extract "rats" not "Rodent Activity").
 3. Output valid JSON only.
 """
+
 
 
 
@@ -64,25 +64,12 @@ class QueryParser:
             logger.critical(f"Failed to initialize Vertex AI: {e}")
             raise
 
-    def parse(self, user_text: str, context: str = "") -> dict:
-        """
-        Parse user query with optional conversation context
-        
-        Args:
-            user_text: The current user question
-            context: Optional conversation history for context
-        """
+    def parse(self, user_text):
         logger.info(f"Parsing query: '{user_text}'")
-        
-        # Build prompt with context if available
-        full_prompt = user_text
-        if context:
-            full_prompt = f"{context}\n\nCurrent question: {user_text}\n\nExtract entities from the CURRENT question, using context to fill in missing details."
-            logger.debug(f"Using conversation context")
-        
+ 
         try:
             response = self.model.generate_content(
-                full_prompt,
+                user_text,
                 generation_config=GenerationConfig(
                     response_mime_type="application/json",
                     temperature=0.0
@@ -118,10 +105,9 @@ class QueryParser:
             logger.error(f"Error during parsing: {e}")
             return {}
 
-def parse_query(user_text: str, context: str = ""):
-    """Parse query with optional conversation context"""
+def parse_query(user_text):
     parser = get_parser()
-    return parser.parse(user_text, context)
+    return parser.parse(user_text)
 
 parser_instance = None
 
@@ -132,7 +118,6 @@ def get_parser():
     return parser_instance
 
 
-def parse_query(user_text: str, context: str = ""):
-    """Parse query with optional conversation context"""
+def parse_query(user_text):
     parser = get_parser()
-    return parser.parse(user_text, context)
+    return parser.parse(user_text)

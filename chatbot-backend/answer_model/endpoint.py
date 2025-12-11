@@ -38,8 +38,7 @@ def generate_answer(question, sql_query, rows):
         "You receive a user's natural language question and the SQL query results "
         "from a BigQuery table. "
         "Your job is to explain the answer in clear, concise language for a non-technical resident. "
-        "Use concrete numbers from the data, avoid mentioning SQL or technical details unless asked, "
-        "and keep the answer to 2–3 sentences."
+        "Use concrete numbers from the data, avoid mentioning SQL or technical details unless asked."
     )
 
     user_prompt = (

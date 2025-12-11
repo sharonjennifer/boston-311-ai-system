@@ -835,11 +835,11 @@
             <span>📞</span>
             <span>Call Boston 311</span>
           </a>
-          <a href="https://www.boston.gov/departments/311" target="_blank" class="info-link">
+          <a href="https://311.boston.gov/" target="_blank" class="info-link">
             <span>🌐</span>
             <span>Visit Boston.gov/311</span>
           </a>
-          <a href="https://www.boston.gov/departments/311/report-issue-boston-311" target="_blank" class="info-link">
+          <a href="https://311.boston.gov/tickets/new" target="_blank" class="info-link">
             <span>📝</span>
             <span>Report an Issue</span>
           </a>
@@ -857,7 +857,8 @@
     </div>
   </div>
 
-  <input type="hidden" id="backendUrl" value="https://b311-chatbot-backend-763245636613.us-central1.run.app" />
+  <!-- <input type="hidden" id="backendUrl" value="https://b311-chatbot-backend-763245636613.us-central1.run.app" /> -->
+  <input type="hidden" id="backendUrl" value="http://localhost:8080" />
 
   <script>
     const backendUrlInput = document.getElementById("backendUrl");
@@ -956,7 +957,7 @@
     clearBtn.addEventListener('click', () => {
       if (confirm('Clear all conversation history?')) {
         conversationHistory = [];
-        saveConversation();
+        localStorage.removeItem('boston311_chat_history');
         renderConversation();
         relatedCard.style.display = 'none';
       }
@@ -981,43 +982,6 @@
         `<div class="related-question" onclick="askRelated('${escapeForAttribute(q)}')">${q}</div>`
       ).join('');
       relatedCard.style.display = 'block';
-    }
-
-    function detectNumbersInData(data) {
-      if (!data || data.length === 0) return null;
-      
-      if (data.length === 1) {
-        const keys = Object.keys(data[0]);
-        if (keys.length === 1) {
-          const value = data[0][keys[0]];
-          if (!isNaN(value)) {
-            return [{
-              number: value,
-              label: keys[0].replace(/_/g, ' ')
-            }];
-          }
-        }
-      }
-      
-      if (data.length <= 5) {
-        const stats = [];
-        data.forEach(row => {
-          const keys = Object.keys(row);
-          if (keys.length === 2) {
-            const labelKey = keys.find(k => isNaN(row[k]));
-            const valueKey = keys.find(k => !isNaN(row[k]));
-            if (labelKey && valueKey) {
-              stats.push({
-                number: row[valueKey],
-                label: row[labelKey]
-              });
-            }
-          }
-        });
-        if (stats.length > 0) return stats;
-      }
-      
-      return null;
     }
 
     function renderConversation() {
@@ -1059,8 +1023,6 @@
       }
 
       chatArea.innerHTML = conversationHistory.map((item, idx) => {
-        const stats = detectNumbersInData(item.data);
-        
         return `
           <div class="message-group">
             <div class="message-user">${escapeHtml(item.question)}</div>
@@ -1069,17 +1031,6 @@
               <div class="assistant-header">
                 <span class="assistant-badge">Boston 311 System</span>
               </div>
-              
-              ${stats ? `
-                <div class="stats-display">
-                  ${stats.map(stat => `
-                    <div class="stat-box">
-                      <span class="stat-number">${stat.number.toLocaleString()}</span>
-                      <span class="stat-label">${stat.label}</span>
-                    </div>
-                  `).join('')}
-                </div>
-              ` : ''}
               
               <div class="answer-text">${escapeHtml(item.answer)}</div>
               
@@ -1166,11 +1117,11 @@
 
       setTimeout(() => {
         progressSection.classList.remove('active');
-        allSteps.forEach(id => {
+        const icons = ['⏳', '🔍', '📊', '✅'];
+        allSteps.forEach((id, idx) => {
           const step = document.getElementById(id);
           step.classList.remove('complete');
-          const icons = ['⏳', '🔍', '📊', '✅'];
-          step.querySelector('.progress-icon').textContent = icons[parseInt(id.replace('step', '')) - 1];
+          step.querySelector('.progress-icon').textContent = icons[idx];
         });
       }, 1500);
     }
@@ -1210,12 +1161,14 @@
       setLoading(true);
 
       try {
+        const payload = { question };
+
         const resp = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json"
           },
-          body: JSON.stringify({ question })
+          body: JSON.stringify(payload)
         });
 
         if (!resp.ok) {
@@ -1228,7 +1181,6 @@
           question: questionInput.value.trim(),
           answer: data.answer ?? "No results found for your query.",
           sql: data.sql ?? "-- Query not available",
-          data: data.data ?? [],
           timestamp: new Date().toISOString()
         });
 

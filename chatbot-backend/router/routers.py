@@ -1,9 +1,3 @@
-"""
-Intelligent Router System for Boston 311 Chatbot
-
-Router 1: Topic Relevance - Is the question about Boston 311?
-Router 2: Query Type - Data query vs Procedural/FAQ
-"""
 import os
 import logging
 import vertexai
@@ -19,18 +13,14 @@ MODEL_ID = os.getenv("B311_ROUTER_MODEL", "gemini-2.0-flash-exp")
 vertexai.init(project=PROJECT_ID, location=LOCATION)
 router_model = GenerativeModel(MODEL_ID)
 
-
 class RouteDecision(Enum):
-    """Routing decisions"""
     RELEVANT = "relevant"
     OFF_TOPIC = "off_topic"
     DATA_QUERY = "data_query"
     PROCEDURAL = "procedural"
 
 
-# ============================================================================
-# ROUTER 1: TOPIC RELEVANCE
-# ============================================================================
+# ROUTER 1: BOSTON 311 TOPIC RELEVANCE CLASSIFIER
 
 TOPIC_CLASSIFIER_PROMPT = """
 You are a topic classifier for a Boston 311 service request chatbot.
@@ -63,16 +53,7 @@ Q: "What's the capital of France?" → NO
 """
 
 
-def check_topic_relevance(question: str) -> bool:
-    """
-    Router 1: Check if question is about Boston 311
-    
-    Args:
-        question: User's question
-    
-    Returns:
-        True if relevant to Boston 311, False if off-topic
-    """
+def check_topic_relevance(question):
     logger.info(f"[Router 1] Checking topic relevance for: '{question}'")
     
     try:
@@ -92,12 +73,11 @@ def check_topic_relevance(question: str) -> bool:
         
     except Exception as e:
         logger.error(f"[Router 1] Classification failed: {e}. Defaulting to RELEVANT.")
-        return True  # Default to relevant on error to avoid blocking valid questions
+        return True
 
 
-# ============================================================================
+
 # ROUTER 2: QUERY TYPE CLASSIFICATION
-# ============================================================================
 
 QUERY_TYPE_CLASSIFIER_PROMPT = """
 You are a query type classifier for a Boston 311 chatbot.
@@ -131,16 +111,7 @@ Q: "Which department handles snow removal?" → PROCEDURAL
 """
 
 
-def classify_query_type(question: str) -> str:
-    """
-    Router 2: Classify if question needs data query or procedural answer
-    
-    Args:
-        question: User's question
-    
-    Returns:
-        'data_query' or 'procedural'
-    """
+def classify_query_type(question):
     logger.info(f"[Router 2] Classifying query type for: '{question}'")
     
     try:
@@ -157,7 +128,7 @@ def classify_query_type(question: str) -> str:
         if "PROCEDURAL" in classification:
             query_type = "procedural"
         else:
-            query_type = "data_query"  # Default to data query
+            query_type = "data_query"
         
         logger.info(f"[Router 2] Classification: {query_type.upper()}")
         return query_type
@@ -167,9 +138,8 @@ def classify_query_type(question: str) -> str:
         return "data_query"
 
 
-# ============================================================================
+
 # FAQ / PROCEDURAL RESPONSE HANDLER
-# ============================================================================
 
 FAQ_KNOWLEDGE = """
 BOSTON 311 PROCEDURAL KNOWLEDGE:
@@ -221,16 +191,7 @@ Answer in a friendly, professional tone like a city employee helping a resident.
 """
 
 
-def handle_procedural_question(question: str) -> str:
-    """
-    Handle procedural/FAQ questions without querying the database
-    
-    Args:
-        question: User's procedural question
-    
-    Returns:
-        Direct answer based on FAQ knowledge
-    """
+def handle_procedural_question(question):
     logger.info(f"[FAQ Handler] Processing procedural question: '{question}'")
     
     try:
@@ -255,23 +216,10 @@ def handle_procedural_question(question: str) -> str:
         )
 
 
-# ============================================================================
+
 # MAIN ROUTING FUNCTION
-# ============================================================================
 
 def route_question(question: str) -> tuple[str, dict]:
-    """
-    Main routing function - orchestrates both routers
-    
-    Args:
-        question: User's question
-    
-    Returns:
-        Tuple of (route_type, metadata)
-        - route_type: 'data_query', 'procedural', or 'off_topic'
-        - metadata: Additional info about the routing decision
-    """
-    # Router 1: Check topic relevance
     is_relevant = check_topic_relevance(question)
     
     if not is_relevant:
@@ -281,13 +229,11 @@ def route_question(question: str) -> tuple[str, dict]:
                 "I'm specifically designed to help with Boston 311 service requests. "
                 "I can answer questions about potholes, trash collection, graffiti, "
                 "streetlights, and other city services in Boston.\n\n"
-                "For other topics, I'd recommend using a general-purpose assistant!"
+                "For other topics, I'd recommend using a general-purpose assistant."
             )
         }
     
-    # Router 2: Classify query type
     query_type = classify_query_type(question)
     
     logger.info(f"[Routing] Final route: {query_type.upper()}")
-    
     return query_type, {}

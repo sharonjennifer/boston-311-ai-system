@@ -1,10 +1,20 @@
+import sys
+
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+
+CURRENT_FILE = Path(__file__).resolve()
+PROJECT_ROOT = CURRENT_FILE.parent.parent
+sys.path.append(str(PROJECT_ROOT))
+
 from app.pipeline import run_pipeline
+from rag.vector_store import get_retriever
+from router.faq_retriever import get_faq_retriever
 from app.schemas import ChatRequest, ChatResponse
-import uuid
-from app.conversation_manager import get_conversation_manager
-from app.monitoring import MonitoringMiddleware
+from cache_storage.query_cache import get_query_cache
+from monitoring.monitoring import MonitoringMiddleware, get_metrics_snapshot
 
 app = FastAPI(
     title="Boston 311 SQL Chatbot",
@@ -23,36 +33,18 @@ app.add_middleware(MonitoringMiddleware)
 
 @app.on_event("startup")
 def startup_event():
-    from rag.vector_store import get_retriever
-    from app.faq_retriever import get_faq_retriever
-    
     get_retriever(force_rebuild=False)
     get_faq_retriever(force_rebuild=False)
 
 @app.post("/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest):
-    # Generate session ID if not provided
-    session_id = request.session_id or str(uuid.uuid4())
-    
-    answer, sql, data = run_pipeline(request.question, session_id=session_id)
+    answer, sql, data = run_pipeline(request.question)
     
     return ChatResponse(
         answer=answer,
         sql=sql,
-        data=data,
-        session_id=session_id
+        data=data
     )
-
-@app.post("/session/new")
-def create_session():
-    session_id = str(uuid.uuid4())
-    return {"session_id": session_id, "message": "New session created"}
-
-@app.delete("/session/{session_id}")
-def clear_session(session_id: str):
-    conv_manager = get_conversation_manager()
-    conv_manager.clear_session(session_id)
-    return {"session_id": session_id, "message": "Session cleared"}
 
 @app.get("/health")
 def health_check():
@@ -60,76 +52,22 @@ def health_check():
 
 @app.get("/cache/stats")
 def get_cache_stats():
-    """Get cache statistics"""
-    from app.query_cache import get_query_cache
     cache = get_query_cache()
     return cache.get_stats()
 
+
 @app.post("/cache/clear")
 def clear_cache():
-    """Clear the query cache"""
-    from app.query_cache import get_query_cache
     cache = get_query_cache()
     cache.clear()
     return {"message": "Cache cleared successfully"}
 
+
 @app.get("/cache/queries")
 def get_cached_queries():
-    """See what queries are currently cached"""
-    from app.query_cache import get_query_cache
     cache = get_query_cache()
     return {"cached_queries": cache.get_cached_queries()}
 
-@app.get("/admin/metrics")
-def get_admin_metrics():
-    """Get all monitoring metrics"""
-    from app.monitoring import get_metrics_collector
-    metrics = get_metrics_collector()
-    return metrics.get_summary_stats()
-
-@app.get("/admin/popular-questions")
-def get_popular_questions():
-    """Get most frequently asked questions"""
-    from app.monitoring import get_metrics_collector
-    metrics = get_metrics_collector()
-    return {"popular_questions": metrics.get_popular_questions(top_n=10)}
-
-@app.get("/admin/recent-requests")
-def get_recent_requests(n: int = 50):
-    """Get recent requests"""
-    from app.monitoring import get_metrics_collector
-    metrics = get_metrics_collector()
-    return {"recent_requests": metrics.get_recent_requests(n=n)}
-
-@app.get("/admin/slow-queries")
-def get_slow_queries():
-    """Get slow queries"""
-    from app.monitoring import get_metrics_collector
-    metrics = get_metrics_collector()
-    return {"slow_queries": metrics.get_slow_queries()}
-
-@app.get("/admin/dashboard")
-def admin_dashboard():
-    """Serve monitoring dashboard HTML"""
-    from fastapi.responses import FileResponse
-    from pathlib import Path
-    dashboard_path = Path(__file__).parent.parent / "templates" / "dashboard.html"
-    return FileResponse(dashboard_path)
-
-@app.get("/admin/alerts")
-def get_alerts():
-    """Get active alerts"""
-    from app.alerts import get_alert_manager
-    alert_mgr = get_alert_manager()
-    return {
-        "active_alerts": alert_mgr.get_active_alerts(),
-        "alert_history": alert_mgr.get_alert_history()
-    }
-
-@app.post("/admin/alerts/{alert_type}/acknowledge")
-def acknowledge_alert(alert_type: str):
-    """Acknowledge an alert"""
-    from app.alerts import get_alert_manager
-    alert_mgr = get_alert_manager()
-    alert_mgr.acknowledge_alert(alert_type)
-    return {"message": f"Alert {alert_type} acknowledged"}
+@app.get("/monitor/metrics")
+def monitor_metrics():
+    return JSONResponse(get_metrics_snapshot())
