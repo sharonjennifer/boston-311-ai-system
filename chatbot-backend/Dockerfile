@@ -1,37 +1,30 @@
-# Production Dockerfile for Boston 311 Chatbot Backend
+# Use a lightweight Python image
 FROM python:3.11-slim
 
-# Set working directory
+# Set workdir
 WORKDIR /app
 
-# Install system dependencies
+# Install system deps (for faiss, numpy, etc.)
 RUN apt-get update && apt-get install -y \
-    gcc \
-    g++ \
+    build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements first (for Docker layer caching)
-COPY requirements.txt .
+# Copy requirements first for better caching
+COPY requirements.txt ./requirements.txt
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy the chatbot code and data
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p /app/data /app/templates /app/faq
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
-ENV PORT=8080
-
-# Expose port (Cloud Run uses 8080 by default)
+# Expose port for uvicorn
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD python -c "import requests; requests.get('http://localhost:8080/health')" || exit 1
+# Default envs (can be overridden in Cloud Run)
+ENV B311_DATA_DIR=data
+ENV B311_LOG_LEVEL=INFO
 
-# Run the application
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT} --workers 1
+# Run FastAPI with uvicorn
+# IMPORTANT: 0.0.0.0 and port 8080 for Cloud Run
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
