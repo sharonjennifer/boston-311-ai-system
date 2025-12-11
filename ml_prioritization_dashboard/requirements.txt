@@ -22,3 +22,4 @@ pandas-gbq
 flask
 gunicorn
 google-cloud-aiplatform
+evidently==0.4.0
