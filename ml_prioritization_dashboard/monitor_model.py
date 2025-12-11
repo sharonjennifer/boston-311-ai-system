@@ -3,17 +3,19 @@ Model monitoring script for the Boston 311 Priority Dashboard.
 
 - Reads recent predictions + labels from BigQuery
   (boston311-mlops.boston311_service.cases_ranking_ml)
+- Reads reference (training) data from BigQuery
+  (boston311-mlops.boston311_service.tbl_train_features) for drift baseline
 - Computes performance metrics over a sliding lookback window:
     * AUC  – ranking quality
     * RMSE – calibration error
-- Computes a simple data drift signal based on class balance:
-    * class_balance = mean(y_true) in the window
-    * compares it to a baseline positive rate from training
+- Computes data drift in two ways:
+    * Simple class-balance drift vs baseline positive rate
+    * Feature-level drift using Evidently's DataDriftPreset
 - Logs results to a dedicated monitoring table:
     boston311-mlops.monitoring.priority_model_metrics
 - Sets flags:
     * decay_flag – performance thresholds violated
-    * drift_flag – class balance drift exceeds threshold
+    * drift_flag – data drift (class balance and/or Evidently) exceeds threshold
 - Optionally sends an EMAIL notification when decay and/or drift are detected.
 - Returns exit code:
     0 → model healthy (no decay, no drift)
@@ -31,6 +33,9 @@ from google.cloud import bigquery
 from sklearn.metrics import roc_auc_score, mean_squared_error
 import numpy as np
 
+from evidently.report import Report
+from evidently.metric_preset import DataDriftPreset
+
 # Logging config
 
 logging.basicConfig(
@@ -43,9 +48,15 @@ logging.basicConfig(
 PROJECT_ID = os.getenv("B311_PROJECT_ID", "boston311-mlops")
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
 
-# Table with predictions + labels
+# Table with predictions + labels (production)
 DATASET_ID = "boston311_service"
 PRED_TABLE = "cases_ranking_ml"
+
+# Reference (training) table for drift baseline
+TRAIN_TABLE = os.getenv(
+    "MONITOR_TRAIN_TABLE",
+    "boston311-mlops.boston311_service.tbl_train_features",
+)
 
 # Monitoring dataset + table (created automatically if missing)
 MONITOR_DATASET = "monitoring"
@@ -70,8 +81,10 @@ BASELINE_POS_RATE = float(os.getenv("MONITOR_BASELINE_POS_RATE", "0.65"))
 # Maximum allowed absolute difference in class balance before we call it drift.
 MAX_CLASS_BALANCE_DRIFT = float(os.getenv("MONITOR_MAX_CLASS_DRIFT", "0.10"))
 
-# Email notification config 
+# Evidently drift threshold: fraction of features marked as drifted
+DRIFT_SHARE_THRESHOLD = float(os.getenv("MONITOR_DRIFT_SHARE_THRESHOLD", "0.30"))
 
+# Email notification config
 MONITOR_EMAIL_TO = os.getenv("MONITOR_EMAIL_TO", "")  # comma-separated emails
 MONITOR_EMAIL_FROM = os.getenv("MONITOR_EMAIL_FROM", "")
 MONITOR_SMTP_HOST = os.getenv("MONITOR_SMTP_HOST", "")
@@ -92,16 +105,20 @@ def ensure_monitoring_table(client: bigquery.Client) -> None:
     Ensure the monitoring dataset + table exist.
 
     Schema:
-      run_timestamp   (TIMESTAMP)
-      window_start    (TIMESTAMP)
-      window_end      (TIMESTAMP)
-      n_rows          (INTEGER)
-      auc             (FLOAT)
-      rmse            (FLOAT)
-      decay_flag      (BOOL)
-      drift_flag      (BOOL)
-      class_balance   (FLOAT)
-      notes           (STRING)
+      run_timestamp    (TIMESTAMP)
+      window_start     (TIMESTAMP)
+      window_end       (TIMESTAMP)
+      n_rows           (INTEGER)
+      auc              (FLOAT)
+      rmse             (FLOAT)
+      decay_flag       (BOOL)
+      drift_flag       (BOOL)
+      class_balance    (FLOAT)
+      drift_share      (FLOAT)
+      n_features       (INTEGER)
+      n_drifted        (INTEGER)
+      dataset_drift    (BOOL)
+      notes            (STRING)
     """
     dataset_id = f"{PROJECT_ID}.{MONITOR_DATASET}"
     table_id = f"{dataset_id}.{MONITOR_TABLE}"
@@ -135,12 +152,34 @@ def ensure_monitoring_table(client: bigquery.Client) -> None:
         bigquery.SchemaField("decay_flag", "BOOL", mode="REQUIRED"),
         bigquery.SchemaField("drift_flag", "BOOL", mode="REQUIRED"),
         bigquery.SchemaField("class_balance", "FLOAT", mode="NULLABLE"),
+        bigquery.SchemaField("drift_share", "FLOAT", mode="NULLABLE"),
+        bigquery.SchemaField("n_features", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("n_drifted", "INTEGER", mode="NULLABLE"),
+        bigquery.SchemaField("dataset_drift", "BOOL", mode="NULLABLE"),
         bigquery.SchemaField("notes", "STRING", mode="NULLABLE"),
     ]
 
     table = bigquery.Table(table_id, schema=schema)
     client.create_table(table)
     logging.info("Monitoring table created: %s", table_id)
+
+
+def fetch_reference_data(client: bigquery.Client, limit: int = 20000):
+    """
+    Fetch a sample of training/reference data for Evidently drift baseline.
+
+    Expects TRAIN_TABLE to have the same feature columns as production table
+    (or at least a compatible subset).
+    """
+    logging.info("Fetching reference (training) data from %s", TRAIN_TABLE)
+    query = f"""
+        SELECT *
+        FROM `{TRAIN_TABLE}`
+        LIMIT {limit}
+    """
+    df = client.query(query).to_dataframe(create_bqstorage_client=False)
+    logging.info("Fetched %d reference rows", len(df))
+    return df
 
 
 def fetch_recent_data(client: bigquery.Client):
@@ -156,7 +195,8 @@ def fetch_recent_data(client: bigquery.Client):
         SELECT
           {PRED_COL} AS y_pred,
           {LABEL_COL} AS y_true,
-          {TIMESTAMP_COL} AS ts
+          {TIMESTAMP_COL} AS ts,
+          *
         FROM `{table_id}`
         WHERE
           {TIMESTAMP_COL} BETWEEN @start_ts AND @end_ts
@@ -179,7 +219,6 @@ def fetch_recent_data(client: bigquery.Client):
         LOOKBACK_DAYS,
     )
 
-    # disable BigQuery Storage API to avoid permission errors
     df = client.query(query, job_config=job_config).to_dataframe(
         create_bqstorage_client=False
     )
@@ -187,9 +226,9 @@ def fetch_recent_data(client: bigquery.Client):
     return df, window_start, window_end
 
 
-def compute_metrics_and_drift(df):
+def compute_performance_metrics(df):
     """
-    Compute AUC, RMSE, and a simple data drift signal (class balance).
+    Compute AUC, RMSE, and class balance.
 
     Returns:
       auc, rmse, n_rows, class_balance, class_balance_diff
@@ -222,7 +261,8 @@ def compute_metrics_and_drift(df):
 
     auc_str = f"{auc:.4f}" if auc is not None else "NA"
     logging.info(
-        "Metrics on %d rows: AUC=%s, RMSE=%.4f, class_balance=%.4f (baseline=%.4f, diff=%.4f)",
+        "Metrics on %d rows: AUC=%s, RMSE=%.4f, class_balance=%.4f "
+        "(baseline=%.4f, diff=%.4f)",
         len(df),
         auc_str,
         rmse,
@@ -231,6 +271,67 @@ def compute_metrics_and_drift(df):
         class_balance_diff,
     )
     return auc, rmse, len(df), class_balance, class_balance_diff
+
+
+def compute_evidently_drift(ref_df, cur_df):
+    """
+    Use Evidently's DataDriftPreset to compute feature-level drift.
+
+    Returns:
+      drift_share, n_features, n_drifted, dataset_drift
+    """
+    if ref_df.empty or cur_df.empty:
+        logging.warning("Reference or current data is empty. Skipping Evidently drift.")
+        return None, None, None, None
+
+    # Drop obvious non-feature columns we don't want to drift-check
+    drop_cols = {
+        "case_id",
+        "CASE_ENQUIRY_ID",
+        "created_at",
+        "created_date",
+        "prediction_timestamp",
+        PRED_COL,
+        LABEL_COL,
+        "y_pred",
+        "y_true",
+        "ts",
+    }
+
+    ref = ref_df.drop(columns=[c for c in drop_cols if c in ref_df.columns], errors="ignore")
+    cur = cur_df.drop(columns=[c for c in drop_cols if c in cur_df.columns], errors="ignore")
+
+    # Make sure we only keep common columns
+    common_cols = sorted(set(ref.columns).intersection(cur.columns))
+    ref = ref[common_cols].copy()
+    cur = cur[common_cols].copy()
+
+    if ref.empty or cur.empty or not common_cols:
+        logging.warning("No common feature columns for Evidently drift. Skipping.")
+        return None, None, None, None
+
+    logging.info("Running Evidently DataDriftPreset on %d features", len(common_cols))
+
+    report = Report(metrics=[DataDriftPreset()])
+    report.run(reference_data=ref, current_data=cur)
+
+    rep_dict = report.as_dict()
+    result = rep_dict["metrics"][0]["result"]
+
+    drift_share = float(result.get("drift_share", 0.0))
+    n_features = int(result.get("n_features", len(common_cols)))
+    n_drifted = int(result.get("n_drifted_features", 0))
+    dataset_drift = bool(result.get("dataset_drift", False))
+
+    logging.info(
+        "Evidently drift: drift_share=%.3f, n_drifted=%d / %d, dataset_drift=%s",
+        drift_share,
+        n_drifted,
+        n_features,
+        dataset_drift,
+    )
+
+    return drift_share, n_features, n_drifted, dataset_drift
 
 
 def _to_ts(val):
@@ -257,6 +358,10 @@ def write_monitoring_row(
     decay_flag,
     drift_flag,
     class_balance,
+    drift_share,
+    n_features,
+    n_drifted,
+    dataset_drift,
     notes="",
 ):
     """Insert one row of monitoring output into BigQuery."""
@@ -273,6 +378,10 @@ def write_monitoring_row(
             "decay_flag": bool(decay_flag),
             "drift_flag": bool(drift_flag),
             "class_balance": class_balance,
+            "drift_share": drift_share,
+            "n_features": n_features,
+            "n_drifted": n_drifted,
+            "dataset_drift": dataset_drift,
             "notes": notes,
         }
     ]
@@ -332,8 +441,19 @@ def main() -> int:
     client = get_bq_client()
     ensure_monitoring_table(client)
 
-    df, window_start, window_end = fetch_recent_data(client)
-    auc, rmse, n_rows, class_balance, class_balance_diff = compute_metrics_and_drift(df)
+    # Load reference and current data
+    ref_df = fetch_reference_data(client)
+    cur_df, window_start, window_end = fetch_recent_data(client)
+
+    # Performance metrics
+    auc, rmse, n_rows, class_balance, class_balance_diff = compute_performance_metrics(
+        cur_df[["y_true", "y_pred"]] if not cur_df.empty else cur_df
+    )
+
+    # Evidently drift
+    drift_share, n_features, n_drifted, dataset_drift = compute_evidently_drift(
+        ref_df, cur_df
+    )
 
     run_ts = datetime.now(timezone.utc)
 
@@ -353,6 +473,10 @@ def main() -> int:
             decay_flag,
             drift_flag,
             class_balance,
+            drift_share,
+            n_features,
+            n_drifted,
+            dataset_drift,
             notes,
         )
         logging.info("Monitoring completed with n_rows=0 (no data).")
@@ -377,13 +501,23 @@ def main() -> int:
         if class_balance_diff > MAX_CLASS_BALANCE_DRIFT:
             drift_flag = True
             notes_parts.append(
-                f"Class balance drift detected (current={class_balance:.3f}, "
-                f"baseline={BASELINE_POS_RATE:.3f}, diff={class_balance_diff:.3f} > "
-                f"{MAX_CLASS_BALANCE_DRIFT:.3f})."
+                "Class balance drift detected "
+                f"(current={class_balance:.3f}, baseline={BASELINE_POS_RATE:.3f}, "
+                f"diff={class_balance_diff:.3f} > {MAX_CLASS_BALANCE_DRIFT:.3f})."
+            )
+
+    # Data drift: Evidently feature-level drift
+    if drift_share is not None and n_features is not None and n_drifted is not None:
+        if drift_share >= DRIFT_SHARE_THRESHOLD or dataset_drift:
+            drift_flag = True
+            notes_parts.append(
+                "Evidently feature drift detected "
+                f"(drift_share={drift_share:.3f} ≥ {DRIFT_SHARE_THRESHOLD:.3f}, "
+                f"n_drifted={n_drifted}/{n_features}, dataset_drift={dataset_drift})."
             )
 
     if not notes_parts:
-        notes = "Model metrics and class balance within thresholds."
+        notes = "Model metrics and drift signals within thresholds."
     else:
         notes = " ".join(notes_parts)
 
@@ -398,6 +532,10 @@ def main() -> int:
         decay_flag,
         drift_flag,
         class_balance,
+        drift_share,
+        n_features,
+        n_drifted,
+        dataset_drift,
         notes,
     )
 
@@ -416,6 +554,8 @@ def main() -> int:
             f"Project: {PROJECT_ID}\n"
             f"Window: {window_start.isoformat()} → {window_end.isoformat()}\n"
             f"AUC={auc}, RMSE={rmse}, class_balance={class_balance}\n"
+            f"Evidently: drift_share={drift_share}, "
+            f"n_drifted={n_drifted}/{n_features}, dataset_drift={dataset_drift}\n"
             f"Flags: decay={decay_flag}, drift={drift_flag}\n"
             f"Notes: {notes}\n"
         )
