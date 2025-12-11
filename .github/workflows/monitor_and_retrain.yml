@@ -24,13 +24,16 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
+          
       - name: Install dependencies
         run: |
           cd ml_prioritization_dashboard
           python -m venv .venv
           source .venv/bin/activate
+          # Base deps for dashboard & model
           pip install -r requirements.txt
+          # Extra deps just for monitoring
+          pip install "numpy<2.0.0" "evidently==0.4.0"
 
       - name: Run model monitoring
         id: monitor
