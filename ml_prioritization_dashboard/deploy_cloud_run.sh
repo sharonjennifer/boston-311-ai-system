@@ -1,19 +1,38 @@
 #!/usr/bin/env bash
+# Deploy the Boston 311 Priority Dashboard to Cloud Run.
+# This script:
+#   1. Builds and pushes a Docker image to Artifact Registry
+#   2. Deploys that image to a Cloud Run service
+#   3. Fetches and prints the service URL
+#   4. Warms up all dashboard tabs with curl
+#
+# Usage:
+#   ./deploy_dashboard.sh              
+#   ./deploy_dashboard.sh v202512101200 
+
 set -euo pipefail
 
-#############################################
-# Config – change only if your project changes
-#############################################
+# Config 
 
+# GCP project that owns the BigQuery datasets and Cloud Run service
 PROJECT_ID="boston311-mlops"
+
+# Region for Artifact Registry + Cloud Run
 REGION="us-central1"
+
+# Artifact Registry repo that stores dashboard images
 REPO="b311-dashboard-repo"
+
+# Base name for the dashboard image
 IMAGE_NAME="priority-dashboard"
+
+# Cloud Run service name
 SERVICE="b311-priority-dashboard"
+
+# Optional: tag passed as first argument; otherwise use timestamp (vYYYYMMDDHHMMSS)
 IMAGE_TAG="${1:-v$(date +%Y%m%d%H%M%S)}"
 
-# Derived variables
-
+# Fully-qualified Artifact Registry image path
 IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/${REPO}/${IMAGE_NAME}:${IMAGE_TAG}"
 
 echo "========================================"
@@ -27,12 +46,15 @@ echo " Tag     : ${IMAGE_TAG}"
 echo "========================================"
 echo
 
-# Build & push Docker image
+# 1. Build & push Docker image
 
 echo "[1/4] Building and pushing Docker image to Artifact Registry..."
+
+# SCRIPT_DIR = folder where this script lives (so we can run from anywhere)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Build a linux/amd64 image (Cloud Run) and push straight to Artifact Registry
 docker buildx build \
   --platform=linux/amd64 \
   -t "${IMAGE}" \
@@ -42,7 +64,7 @@ docker buildx build \
 echo "[1/4] Image build & push complete."
 echo
 
-# Deploy to Cloud Run
+# 2. Deploy to Cloud Run
 
 echo "[2/4] Deploying to Cloud Run service: ${SERVICE} ..."
 
@@ -68,7 +90,7 @@ B311_USE_LOCAL_SA=false \
 echo "[2/4] Cloud Run deploy command finished."
 echo
 
-# Fetch & print service URL
+# 3. Fetch & print service URL
 
 echo "[3/4] Fetching Cloud Run service URL..."
 
@@ -88,7 +110,7 @@ echo "   ${SERVICE_URL}"
 echo "========================================"
 echo
 
-# Warm up all dashboard tabs
+# 4. Warm up all dashboard tabs
 
 echo "[4/4] Warming up all dashboard tabs (this may take a few seconds each)..."
 echo

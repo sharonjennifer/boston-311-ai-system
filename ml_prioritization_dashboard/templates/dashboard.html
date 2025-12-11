@@ -4,18 +4,21 @@
   <meta charset="UTF-8" />
   <title>Boston 311 Priority Command Center</title>
 
-  <!-- Modern font -->
+  <!-- Load Inter font for a clean, modern UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
 
-  <!-- Page CSS -->
+  <!-- Main CSS for the command center dashboard -->
   <link
     rel="stylesheet"
     href="{{ url_for('static', filename='css/dashboard.css', v='1.0.0') }}"
   />
 
-  <!-- Leaflet CSS -->
+  <!-- Leaflet CSS so we can render the 311 map -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -25,9 +28,10 @@
 </head>
 <body>
 
-  <!-- Top city bar -->
+  <!-- Top city bar that makes this feel like an official Boston tool -->
   <div class="top-nav">
     <div class="top-nav-left">
+      <!-- Small badge that labels the city -->
       <div class="city-badge">City of Boston</div>
       <div class="top-nav-title">
         <div class="top-nav-title-main">311 Priority Command Center</div>
@@ -37,7 +41,9 @@
       </div>
     </div>
     <div class="top-nav-right">
+      <!-- Environment indicator so we know this is an internal pilot, not production -->
       <div class="env-pill">Environment: Internal • Pilot model v1.0</div>
+      <!-- Simple uptime indicator -->
       <div class="system-status-pill">
         <span class="status-dot"></span>
         System online
@@ -45,12 +51,14 @@
     </div>
   </div>
 
-  <!-- Tour overlay + tooltip -->
+  <!-- Darkened overlay and tooltip used for the guided tour steps -->
   <div id="tourOverlay" class="tour-overlay"></div>
   <div id="tourTooltip" class="tour-tooltip"></div>
 
+  <!-- Main page layout wrapper -->
   <div class="page-shell">
 
+    <!-- Navigation tabs to jump between different dashboard sections -->
     <div class="page-tabs">
       <a href="/" class="page-tab page-tab-active">Command Center</a>
       <a href="/work-queues" class="page-tab">Work Queues</a>
@@ -60,7 +68,7 @@
       <a href="/analytics" class="page-tab">Analytics</a>
     </div>
 
-    <!-- HERO -->
+    <!-- Hero section that explains what this view is for and which model powers it -->
     <div class="hero-card" id="heroCard">
       <div class="hero-main">
         <div class="hero-title">Boston 311 Priority Workboard</div>
@@ -69,37 +77,49 @@
           your daily command center to understand workload, hot spots, and the top cases to act on.
         </div>
         <div class="hero-meta-row">
+          <!-- First pill: short description of the model -->
           <div class="hero-meta-pill">
             <span class="hero-meta-dot"></span>
             ML model: XGBoost priority scorer
           </div>
+          <!-- Second pill: note that we applied bias mitigation -->
           <div class="hero-meta-pill">
             <span class="hero-meta-dot" style="background:#f97316;"></span>
             Bias mitigation: neighborhood &amp; department re-weighting
           </div>
         </div>
       </div>
+
+      <!-- Right side of hero shows data freshness and quick actions -->
       <div class="hero-side">
         <div class="hero-side-label">Data freshness</div>
         <div class="hero-last-updated">
           <span style="width:7px;height:7px;border-radius:999px;background:#22c55e;"></span>
+          <!-- We show a human-readable label if available, otherwise default to "Today" -->
           Last training run: {{ stats.last_run_label if stats.last_run_label is defined else "Today" }}
         </div>
         <div class="hero-side-label" style="margin-top:6px;">Quick actions</div>
         <div class="toggle-group">
+          <!-- Button that toggles dark mode for this dashboard -->
           <button type="button" id="darkModeToggle" class="btn-secondary">Toggle dark mode</button>
+          <!-- Button to restart the guided explanation of the page -->
           <button type="button" id="tourRestartBtn" class="btn-secondary">Replay tour</button>
         </div>
       </div>
     </div>
 
-    <!-- FILTERS -->
+    <!-- Filter panel where users slice the 311 data before viewing KPIs, map, and list -->
     <div class="filters-card" id="filtersCard">
       <div class="filters-header">
         <div class="filters-title">Filters</div>
-        <div class="filters-hint">Tune your slice of the city, then apply to refresh KPIs, map, and queue.</div>
+        <div class="filters-hint">
+          Tune your slice of the city, then apply to refresh KPIs, map, and queue.
+        </div>
       </div>
+
+      <!-- We submit filters via GET so URLs can be bookmarked/shared with the same view -->
       <form id="filterForm" method="get" action="/" class="filters-form-row">
+        <!-- Neighborhood dropdown -->
         <div>
           <label for="neighborhood">Neighborhood</label>
           <select id="neighborhood" name="neighborhood">
@@ -110,6 +130,7 @@
           </select>
         </div>
 
+        <!-- Reason dropdown -->
         <div>
           <label for="reason">Reason</label>
           <select id="reason" name="reason">
@@ -120,6 +141,7 @@
           </select>
         </div>
 
+        <!-- Department dropdown -->
         <div>
           <label for="department">Department</label>
           <select id="department" name="department">
@@ -130,6 +152,7 @@
           </select>
         </div>
 
+        <!-- Case ID filter for looking up a specific ticket -->
         <div>
           <label for="case_id">Case ID</label>
           <input
@@ -141,19 +164,22 @@
           />
         </div>
 
-        <!-- Hidden Near-Me fields -->
+        <!-- Hidden fields that hold the “What’s Near Me?” location info -->
         <input type="hidden" id="near_lat" name="near_lat" value="{{ near_lat or '' }}">
         <input type="hidden" id="near_lon" name="near_lon" value="{{ near_lon or '' }}">
         <input type="hidden" id="near_radius_m" name="near_radius_m" value="{{ near_radius_m or '' }}">
 
+        <!-- Main filter submit button -->
         <button type="submit" class="btn">Apply filters</button>
+        <!-- Button that triggers geolocation and sets the near-me fields -->
         <button type="button" id="nearMeBtn" class="btn-outline">What’s Near Me?</button>
 
+        <!-- Space where we show messages if geolocation fails -->
         <span id="nearMeMessage" class="nearme-msg"></span>
       </form>
     </div>
 
-    <!-- KPI STRIP -->
+    <!-- KPI cards summarizing the current filtered slice -->
     <div class="kpi-strip" id="kpiRow">
       <div class="kpi-card">
         <div class="kpi-label">Total open cases (filtered)</div>
@@ -176,16 +202,19 @@
       </div>
     </div>
 
-    <!-- MAP PANEL ONLY -->
+    <!-- Map panel that shows the spatial distribution of the filtered open cases -->
     <div class="panel" id="mapPanel">
       <div class="panel-header">
         <div class="panel-title">Map of filtered cases</div>
-        <div class="panel-subtitle">Each circle is an open case, sized and colored by priority.</div>
+        <div class="panel-subtitle">
+          Each circle is an open case, sized and colored by priority.
+        </div>
       </div>
+      <!-- Leaflet injects its map tiles into this div -->
       <div id="map"></div>
     </div>
 
-    <!-- CASE LIST -->
+    <!-- Case list panel: top 10 priority-ordered cases for the current filters -->
     <div class="panel cases-panel">
       <div class="section-heading-row">
         <div>
@@ -197,10 +226,13 @@
       </div>
 
       {% if critical_cases|length == 0 %}
+        <!-- If nothing matches the filters, we show a friendly no-data message -->
         <div class="no-cases-text">No cases found for the selected filters.</div>
       {% else %}
+        <!-- Scrollable list of case cards populated from the BigQuery results -->
         <div class="case-list" id="caseListMain">
           {% for row in critical_cases %}
+            <!-- We add a priority class based on the numeric score to color the border -->
             <div class="case-card
                         {% if row.priority_score is defined %}
                           {% if row.priority_score >= 0.9 %} priority-high
@@ -208,8 +240,10 @@
                           {% else %} priority-low
                           {% endif %}
                         {% endif %}">
+              <!-- Rank within the filtered list (1 = highest priority) -->
               <div class="case-rank">#{{ row.rank_overall }}</div>
 
+              <!-- Main case details: ID, neighborhood, reason, department, etc. -->
               <div class="case-main">
                 <div class="case-title-line">
                   <span class="case-id">Case {{ row.case_enquiry_id }}</span>
@@ -218,6 +252,7 @@
                   {% endif %}
                 </div>
 
+                <!-- Badges add quick visual labels for reason, department, and segment -->
                 <div class="case-badges">
                   {% if row.reason %}
                     <span class="badge badge-reason">{{ row.reason }}</span>
@@ -230,6 +265,7 @@
                   {% endif %}
                 </div>
 
+                <!-- Extra context such as repeat reports and nearby open cases -->
                 <div class="case-sub">
                   {% if row.prev_repeat_90d_30m is defined %}
                     <span>
@@ -244,6 +280,7 @@
                 </div>
               </div>
 
+              <!-- Right side shows the numeric ML priority score and a progress bar -->
               <div class="case-score">
                 <div class="case-score-label">Priority score</div>
                 <div class="case-score-value">
@@ -261,9 +298,9 @@
     </div>
   </div>
 
-  <!-- JS LIBS & PAGE JS -->
+  <!-- JS libraries and data injection -->
 
-  <!-- Leaflet JS -->
+  <!-- Leaflet JS to power the interactive map -->
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
@@ -271,7 +308,7 @@
     defer
   ></script>
 
-  <!-- Expose data for JS -->
+  <!-- Expose the combos and map cases into a global object for dashboard.js to use -->
   <script>
     window.B311_DATA = {
       combos: {{ combos | tojson | safe }},
@@ -279,7 +316,7 @@
     };
   </script>
 
-  <!-- Page JS -->
+  <!-- Main JavaScript for this Command Center page -->
   <script
     src="{{ url_for('static', filename='js/dashboard.js', v='1.0.0') }}"
     defer

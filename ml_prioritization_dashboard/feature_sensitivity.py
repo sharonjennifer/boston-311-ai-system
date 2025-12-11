@@ -9,7 +9,7 @@ import joblib
 import shap
 import matplotlib.pyplot as plt
 
-# ---------- Paths & credentials ----------
+# Paths & credentials 
 ROOT_DIR = Path(__file__).resolve().parent.parent      # repo root
 APP_DIR = Path(__file__).resolve().parent              # ml_prioritization_dashboard
 MODEL_DIR = APP_DIR / "models"

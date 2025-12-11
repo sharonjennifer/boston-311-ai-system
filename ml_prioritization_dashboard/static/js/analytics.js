@@ -1,14 +1,15 @@
+// Wait until the HTML is loaded before running any chart logic
 document.addEventListener("DOMContentLoaded", () => {
-  // Dark mode preference
+  // Try to apply the user's dark mode preference from localStorage
   try {
     if (localStorage.getItem("b311_dark") === "true") {
       document.body.classList.add("dark-mode");
     }
   } catch (_) {
-    // ignore if localStorage blocked
+    // If localStorage is blocked (e.g., in strict browser mode), we simply skip it
   }
 
-  // Load data from inline JSON
+  // Default empty structure in case the inline JSON script is missing or invalid
   let data = {
     neighLabels: [],
     neighCounts: [],
@@ -24,15 +25,18 @@ document.addEventListener("DOMContentLoaded", () => {
     srcArtHours: []
   };
 
+  // Read the inline JSON block that the Flask template rendered into the page
   const dataScript = document.getElementById("analytics-data");
   if (dataScript) {
     try {
       data = JSON.parse(dataScript.textContent);
     } catch (e) {
+      // If JSON parsing fails, log it and keep going with the empty defaults
       console.error("Failed to parse analytics data JSON:", e);
     }
   }
 
+  // Destructure the values we care about, so it's easier to pass them into charts
   const {
     neighLabels,
     neighCounts,
@@ -48,6 +52,7 @@ document.addEventListener("DOMContentLoaded", () => {
     srcArtHours
   } = data;
 
+  // If Chart.js didn't load for some reason, we don't try to build charts
   if (typeof Chart === "undefined") {
     console.warn("Chart.js not loaded; skipping analytics charts.");
     return;
@@ -55,10 +60,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 1. Neighborhood cases (horizontal bar)
   (function () {
+    // Only draw the chart if we actually have neighborhood data
     if (!neighLabels || !neighLabels.length) return;
     const canvas = document.getElementById("neighCasesChart");
     if (!canvas) return;
 
+    // Horizontal bar chart showing the top neighborhoods by case volume
     new Chart(canvas, {
       type: "bar",
       data: {
@@ -90,10 +97,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // 2. Department cases (vertical bar)
   (function () {
+    // Department chart only appears when there are labels
     if (!deptLabels || !deptLabels.length) return;
     const canvas = document.getElementById("deptCasesChart");
     if (!canvas) return;
 
+    // Vertical bar chart showing which departments receive the most requests
     new Chart(canvas, {
       type: "bar",
       data: {
@@ -122,12 +131,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // 3. Reasons (horizontal bar)
+  // 3. Top request reasons (horizontal bar)
   (function () {
+    // Only render if we have reason/topic information
     if (!reasonLabels || !reasonLabels.length) return;
     const canvas = document.getElementById("reasonCasesChart");
     if (!canvas) return;
 
+    // Horizontal bar chart for the most common request reasons citywide
     new Chart(canvas, {
       type: "bar",
       data: {
@@ -157,12 +168,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // 4. SLA by department (horizontal bar, %)
+  // 4. SLA compliance by department (horizontal bar, percentage)
   (function () {
+    // Skip this chart when there is no SLA department data
     if (!slaDeptLabels || !slaDeptLabels.length) return;
     const canvas = document.getElementById("slaDeptChart");
     if (!canvas) return;
 
+    // Horizontal bar chart where each bar shows SLA % for a department
     new Chart(canvas, {
       type: "bar",
       data: {
@@ -186,6 +199,7 @@ document.addEventListener("DOMContentLoaded", () => {
             beginAtZero: true,
             max: 100,
             ticks: {
+              // Show the x-axis ticks as percentages
               callback: (value) => value + "%"
             },
             grid: { color: "rgba(148,163,184,0.3)" }
@@ -196,12 +210,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // 5. Volume by source (doughnut)
+  // 5. Volume by report source (doughnut chart)
   (function () {
+    // Only render if we know the channels/sources
     if (!srcLabels || !srcLabels.length) return;
     const canvas = document.getElementById("sourceVolumeChart");
     if (!canvas) return;
 
+    // Doughnut chart to show the share of volume by channel (Call, app, Web, etc.)
     new Chart(canvas, {
       type: "doughnut",
       data: {
@@ -209,6 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
         datasets: [
           {
             data: srcCounts || [],
+            // Using multiple colors so each channel is visually distinct
             backgroundColor: [
               "#3b82f6",
               "#22c55e",
@@ -233,12 +250,14 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // 6. Avg resolution time by source (bar)
+  // 6. Average resolution time by source (bar chart)
   (function () {
+    // Only draw if we have average resolution time data per source
     if (!srcArtLabels || !srcArtLabels.length) return;
     const canvas = document.getElementById("sourceArtChart");
     if (!canvas) return;
 
+    // Bar chart showing how long (in hours) each channel takes on average to close a case
     new Chart(canvas, {
       type: "bar",
       data: {

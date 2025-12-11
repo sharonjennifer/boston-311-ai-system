@@ -1,21 +1,26 @@
 :root {
+  /* Base colors and cards for the light theme */
   --bg-shell: #f5f7fb;
   --bg-main: #f5f7fb;
   --bg-card: #ffffff;
   --bg-card-soft: #f8fafc;
   --border-subtle: #e2e8f0;
 
+  /* Header/nav colors */
   --nav-bg: #021b3b;
   --nav-bg-alt: #0b2648;
   --nav-border: #0f2f5f;
 
+  /* Accent colors used for charts and highlights */
   --accent-blue: #2563eb;
   --accent-red: #ff4c4c;
 
+  /* Text colors */
   --text-main: #0f172a;
   --text-muted: #6b7280;
 }
 
+/* Dark mode overrides the CSS variables above */
 body.dark-mode {
   --bg-shell: #020617;
   --bg-main: #020617;
@@ -26,10 +31,12 @@ body.dark-mode {
   --text-muted: #9ca3af;
 }
 
+/* Use border-box so padding and border are counted in element width/height */
 * {
   box-sizing: border-box;
 }
 
+/* Global body styles for font, background, and text color */
 body {
   margin: 0;
   padding: 0;
@@ -40,6 +47,7 @@ body {
 
 /* ---------- TOP NAV ---------- */
 
+/* Top strip that shows city branding and page title */
 .top-nav {
   background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
   border-bottom: 1px solid var(--nav-border);
@@ -50,12 +58,14 @@ body {
   justify-content: space-between;
 }
 
+/* Left side of the top nav: city badge + title */
 .top-nav-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+/* Small “City of Boston” label */
 .city-badge {
   border-radius: 4px;
   border: 1px solid rgba(255,255,255,0.6);
@@ -66,6 +76,7 @@ body {
   font-weight: 600;
 }
 
+/* Container for main and subtitle text in the top nav */
 .top-nav-title {
   display: flex;
   flex-direction: column;
@@ -82,6 +93,7 @@ body {
   opacity: 0.85;
 }
 
+/* Right side of the top nav: env + status pills */
 .top-nav-right {
   display: flex;
   align-items: center;
@@ -89,6 +101,7 @@ body {
   font-size: 12px;
 }
 
+/* Environment indicator pill (Internal / Pilot) */
 .env-pill {
   border-radius: 999px;
   padding: 3px 10px;
@@ -97,6 +110,7 @@ body {
   background: rgba(15,23,42,0.4);
 }
 
+/* System online status pill with green dot */
 .system-status-pill {
   display: inline-flex;
   align-items: center;
@@ -119,10 +133,12 @@ body {
 
 /* ---------- PAGE SHELL ---------- */
 
+/* Wrapper that adds padding around the whole content area */
 .page-shell {
   padding: 20px 32px 40px;
 }
 
+/* On small screens, reduce side padding */
 @media (max-width: 900px) {
   .top-nav,
   .page-shell {
@@ -132,6 +148,7 @@ body {
 
 /* ---------- TABS ---------- */
 
+/* Tab bar to navigate between different pages of the dashboard */
 .page-tabs {
   margin-bottom: 10px;
   display: inline-flex;
@@ -141,6 +158,7 @@ body {
   gap: 2px;
 }
 
+/* Individual tab */
 .page-tab {
   padding: 5px 12px;
   font-size: 11px;
@@ -150,6 +168,7 @@ body {
   font-weight: 500;
 }
 
+/* Styling for the current/active tab */
 .page-tab-active {
   background: #ffffff;
   color: #111827;
@@ -157,6 +176,7 @@ body {
 
 /* ---------- HERO ---------- */
 
+/* Hero card at the top that explains what Demand Trends is about */
 .hero-card {
   background: var(--bg-card);
   border-radius: 16px;
@@ -172,12 +192,14 @@ body {
   margin-bottom: 4px;
 }
 
+/* Short description under the title */
 .hero-subtitle {
   font-size: 13px;
   color: var(--text-muted);
   max-width: 780px;
 }
 
+/* Note about data source and how the forecast is built */
 .hero-note {
   margin-top: 8px;
   font-size: 11px;
@@ -186,16 +208,19 @@ body {
 
 /* ---------- CHART LAYOUT ---------- */
 
+/* Two-column grid for the chart layout (falls back to one column on mobile) */
 .charts-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
 }
 
+/* Extra spacing below the top row of charts */
 .charts-grid-top {
   margin-bottom: 16px;
 }
 
+/* Switch to a single column layout on smaller screens */
 @media (max-width: 900px) {
   .charts-grid {
     grid-template-columns: 1fr;
@@ -204,6 +229,7 @@ body {
 
 /* ---------- CHART CARDS ---------- */
 
+/* Card styling used for every chart container */
 .chart-card {
   background: var(--bg-card);
   border-radius: 14px;
@@ -212,10 +238,12 @@ body {
   box-shadow: 0 6px 18px rgba(15,23,42,0.05);
 }
 
+/* Extra margin when a chart card is full-width */
 .chart-card-full {
   margin-top: 16px;
 }
 
+/* Header section inside each chart card */
 .chart-header {
   display: flex;
   flex-direction: column;
@@ -233,6 +261,7 @@ body {
   color: var(--text-muted);
 }
 
+/* Styling for “no data” messages when a chart has nothing to draw */
 .chart-empty {
   font-size: 12px;
   color: var(--text-muted);
@@ -241,6 +270,7 @@ body {
 
 /* ---------- CANVAS ---------- */
 
+/* Make charts stretch to full width and cap their height */
 canvas {
   width: 100%;
   max-height: 260px;

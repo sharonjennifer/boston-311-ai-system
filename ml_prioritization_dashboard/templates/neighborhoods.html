@@ -4,17 +4,20 @@
   <meta charset="UTF-8" />
   <title>Boston 311 Neighborhood Performance</title>
 
-  <!-- Modern font -->
+  <!-- Load Inter so the typography matches the rest of the dashboard -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
 
-  <!-- Page-specific CSS -->
+  <!-- Page-specific CSS for the Neighborhood Performance view -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/neighborhoods.css') }}">
 </head>
 <body>
 
-  <!-- Top nav -->
+  <!-- Shared top nav with city branding and environment status -->
   <div class="top-nav">
     <div class="top-nav-left">
       <div class="city-badge">City of Boston</div>
@@ -35,7 +38,7 @@
   </div>
 
   <div class="page-shell">
-    <!-- Tabs -->
+    <!-- Tabs that let staff switch between Command Center, SLA, Demand Trends, etc. -->
     <div class="page-tabs">
       <a href="/" class="page-tab">Command Center</a>
       <a href="/work-queues" class="page-tab">Work Queues</a>
@@ -45,7 +48,7 @@
       <a href="/analytics" class="page-tab">Analytics</a>
     </div>
 
-    <!-- Hero -->
+    <!-- Hero card summarizing how to use this page -->
     <div class="hero-card">
       <div>
         <div class="hero-main-title">Neighborhood Performance</div>
@@ -65,11 +68,12 @@
       </div>
     </div>
 
-    {# KPIs #}
+    {# Compute simple KPIs (neighborhood count, total open, total critical) using perf_rows #}
     {% set total_neigh = perf_rows|length %}
     {% set total_open = perf_rows | map(attribute='total_open') | sum %}
     {% set total_crit  = perf_rows | map(attribute='num_crit') | sum %}
 
+    <!-- KPI strip that shows a quick overview of neighborhood-level load -->
     <div class="kpi-strip">
       <div class="kpi-card">
         <div class="kpi-label">Neighborhoods with open cases</div>
@@ -85,7 +89,7 @@
       </div>
     </div>
 
-    <!-- Table panel -->
+    <!-- Main panel: table that compares each neighborhood side-by-side -->
     <div class="panel">
       <div class="panel-title">Neighborhood comparison</div>
       <div class="panel-subtitle">
@@ -93,8 +97,10 @@
       </div>
 
       {% if perf_rows|length == 0 %}
+        <!-- If there are no rows from BigQuery, show a simple no-data message -->
         <p class="no-data-text">No data available.</p>
       {% else %}
+        {# Sort neighborhoods by average priority score in descending order #}
         {% set rows_sorted = perf_rows|sort(attribute='avg_score', reverse=True) %}
         <table class="neighborhood-table">
           <thead>
@@ -113,9 +119,11 @@
                 <td>{{ r.neighborhood or "Unknown / missing neighborhood" }}</td>
                 <td>{{ r.total_open }}</td>
                 <td>
+                  <!-- Critical cases highlighted as a red pill for quick scanning -->
                   <span class="crit-pill">{{ r.num_crit }}</span>
                 </td>
                 <td>
+                  <!-- Average ML priority score, formatted to three decimals -->
                   <span class="score-pill">{{ "%.3f"|format(r.avg_score) }}</span>
                 </td>
                 <td>{{ "%.1f"|format(crit_share) }}%</td>
@@ -127,7 +135,7 @@
     </div>
   </div>
 
-  <!-- Page JS -->
+  <!-- Neighborhoods-specific JS (currently just handles dark mode) -->
   <script src="{{ url_for('static', filename='js/neighborhoods.js') }}" defer></script>
 </body>
 </html>

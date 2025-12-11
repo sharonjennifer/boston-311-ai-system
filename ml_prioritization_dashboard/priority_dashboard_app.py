@@ -21,16 +21,12 @@ import pandas as pd
 from flask import Flask, render_template, request, jsonify
 from google.cloud import bigquery
 
-# -----------------------------------------------------------------------------
 # Paths & core config
-# -----------------------------------------------------------------------------
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
 APP_DIR = Path(__file__).resolve().parent
 
-# -----------------------------------------------------------------------------
 # Global caches
-# -----------------------------------------------------------------------------
 SLA_CACHE_DF: pd.DataFrame | None = None
 SLA_CACHE_TS: dt.datetime | None = None
 SLA_CACHE_TTL_MIN = 30  # minutes
@@ -51,9 +47,7 @@ DEMAND_CACHE: dict | None = None
 DEMAND_CACHE_TS: dt.datetime | None = None
 DEMAND_TTL_MIN = 30  # minutes
 
-# -----------------------------------------------------------------------------
 # Local model loading (Cloud Run–only inference)
-# -----------------------------------------------------------------------------
 
 MODEL_PATH = APP_DIR / "models" / "priority_model.pkl"
 print(f"[INFO] Loading local model from {MODEL_PATH}")
@@ -62,9 +56,7 @@ PRIORITY_PIPELINE = joblib.load(MODEL_PATH)
 # Optional project id from env (mainly for logs / consistency)
 PROJECT_ID = os.environ.get("GCP_PROJECT", "boston311-mlops")
 
-# -----------------------------------------------------------------------------
 # BigQuery config & client
-# -----------------------------------------------------------------------------
 
 SA_PATH = ROOT_DIR / "secrets" / "bq-dashboard-ro.json"
 
@@ -104,10 +96,7 @@ TRAIN_FEATURE_TABLE = os.getenv(
 app = Flask(__name__)
 bq_client = bigquery.Client(project=PROJECT, location=BQ_LOCATION)
 
-
-# -----------------------------------------------------------------------------
-# Static file caching – make CSS/JS feel instant
-# -----------------------------------------------------------------------------
+# Static file caching
 @app.after_request
 def add_cache_headers(response):
     """
@@ -128,10 +117,7 @@ def create_app():
     """
     return app
 
-
-# -----------------------------------------------------------------------------
 # Prediction helper using local sklearn pipeline
-# -----------------------------------------------------------------------------
 
 def predict_priority(instances):
     """
@@ -144,13 +130,10 @@ def predict_priority(instances):
     """
     df = pd.DataFrame(instances)
     proba = PRIORITY_PIPELINE.predict_proba(df)[:, 1]
-    # Return a simple list of floats (Vertex-style: {"predictions": [..]})
+    # Return a simple list of floats
     return proba.tolist()
 
-
-# -----------------------------------------------------------------------------
 # Data loading – scored priority table (for Command Center, Work Queues, etc.)
-# -----------------------------------------------------------------------------
 
 FULL_DF: pd.DataFrame | None = None
 
@@ -189,10 +172,7 @@ def get_full_df() -> pd.DataFrame:
         print(f"[INFO] Loaded {len(FULL_DF)} rows into memory.")
     return FULL_DF
 
-
-# -----------------------------------------------------------------------------
 # Daily SLA / analytics table loading (dashboard_daily_metrics)
-# -----------------------------------------------------------------------------
 
 def load_sla_data(days: int = 365) -> pd.DataFrame:
     """
@@ -295,10 +275,7 @@ def get_sla_cached_df(days: int = 365) -> pd.DataFrame:
 
     return df
 
-
-# -----------------------------------------------------------------------------
 # Helper filters
-# -----------------------------------------------------------------------------
 
 def apply_near_filter(
     df: pd.DataFrame,
@@ -367,10 +344,7 @@ def api_test_vertex():
 
     return jsonify({"predictions": preds})
 
-
-# -----------------------------------------------------------------------------
 # Routes – Command Center
-# -----------------------------------------------------------------------------
 
 @app.route("/", methods=["GET"])
 def index():
@@ -506,10 +480,7 @@ def index():
         TRAIN_FEATURE_TABLE=TRAIN_FEATURE_TABLE,
     )
 
-
-# -----------------------------------------------------------------------------
 # Routes – Work Queues & Neighborhoods
-# -----------------------------------------------------------------------------
 
 @app.route("/work-queues")
 def work_queues_page():
@@ -549,7 +520,7 @@ def work_queues_page():
     )
 
 
-# ---------- Neighborhood performance cache helper ----------
+# Neighborhood performance cache helper 
 
 def get_neighborhood_perf() -> list[dict]:
     global NEIGHBORHOODS_CACHE, NEIGHBORHOODS_CACHE_TS
@@ -619,10 +590,7 @@ def neighborhoods_page():
         perf_rows=neigh_rows,
     )
 
-
-# -----------------------------------------------------------------------------
-# Overdue open cases – from raw service_requests_2025 (no daily table changes)
-# -----------------------------------------------------------------------------
+# Overdue open cases – from raw service_requests_2025 
 
 def load_overdue_open_cases(days: int = 365) -> pd.DataFrame:
     """
@@ -670,10 +638,7 @@ def load_overdue_open_cases(days: int = 365) -> pd.DataFrame:
 
     return df
 
-
-# -----------------------------------------------------------------------------
 # Route – SLA Performance (from daily metrics + raw overdue query)
-# -----------------------------------------------------------------------------
 
 def get_sla_metrics() -> dict:
     """
@@ -712,7 +677,7 @@ def get_sla_metrics() -> dict:
                 df[col] = None
             df[col] = df[col].fillna("Unknown").astype(str).str.strip()
 
-        # ------------------ 1. Overall SLA compliance ------------------
+        #  1. Overall SLA compliance 
         total_eligible = float(df.get("sla_eligible_cases", pd.Series()).sum())
         total_met = float(df.get("sla_met_cases", pd.Series()).sum())
 
@@ -721,7 +686,7 @@ def get_sla_metrics() -> dict:
         else:
             overall_sla_rate = None
 
-        # ------------------ 2. SLA by department (top 10) ------------------
+        #  2. SLA by department (top 10)
         if "department" in df.columns and "sla_eligible_cases" in df.columns:
             dept_group = (
                 df.groupby("department", as_index=False)[
@@ -752,7 +717,7 @@ def get_sla_metrics() -> dict:
             sla_dept_labels = []
             sla_dept_rates = []
 
-        # ------------------ 3. Avg resolution time (overall + by service) ------------------
+        # 3. Avg resolution time (overall + by service) 
         if "avg_resolution_hrs" in df.columns and "closed_cases" in df.columns:
             # make sure we have clean numeric columns
             df["closed_cases"] = df["closed_cases"].astype(float)
@@ -761,7 +726,7 @@ def get_sla_metrics() -> dict:
             # total resolution hours for each row
             df["total_resolution_hours"] = df["avg_resolution_hrs"] * df["closed_cases"]
 
-            # ---- overall weighted average (KPI at the top) ----
+            # overall weighted average (KPI at the top) 
             total_closed_all = float(df["closed_cases"].sum())
             total_hours_all = float(df["total_resolution_hours"].sum())
             if total_closed_all > 0:
@@ -807,7 +772,7 @@ def get_sla_metrics() -> dict:
             art_service_labels = []
             art_service_hours = []
 
-    # ------------------ 4. Overdue drilldown: computed from raw table ------------------
+    # 4. Overdue drilldown: computed from raw table 
     overdue_df = load_overdue_open_cases(days=365)
     overdue_count = int(len(overdue_df))
 
@@ -900,10 +865,7 @@ def sla_performance_page():
     metrics = get_sla_metrics()
     return render_template("sla_performance.html", **metrics)
 
-
-# -----------------------------------------------------------------------------
-# Demand Trends – from daily metrics (cached)
-# -----------------------------------------------------------------------------
+# Demand Trends – from daily metrics 
 
 def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     """
@@ -926,9 +888,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         "topic_totals": [],
     }
 
-    # ------------------------------------------------------------------
-    # 0) Guard for recent data (for weekly history + forecast)
-    # ------------------------------------------------------------------
+    # Guard for recent data (for weekly history + forecast)
     if df_recent.empty or "date" not in df_recent.columns:
         # We still try to build seasonality from the long window below.
         recent_daily = None
@@ -949,9 +909,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     fc_week_labels: list[str] = []
     fc_week_values: list[int] = []
 
-    # ------------------------------------------------------------------
     # 1) Weekly historical volume (last 12 months, no forecast)
-    # ------------------------------------------------------------------
     if recent_daily is not None and not recent_daily.empty:
         max_date = recent_daily.index.max()
 
@@ -975,9 +933,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         hist_week_labels = [ts.strftime("%Y-%m-%d") for ts in weekly_counts.index]
         hist_week_values = [int(v) for v in weekly_counts.values]
 
-        # ------------------------------------------------------------------
         # 2) Monthly trend forecast (next 6 months)
-        # ------------------------------------------------------------------
         monthly_ts = (
             recent_daily["daily_volume"]
             .resample("MS")
@@ -1016,10 +972,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
                 fc_week_labels.append(ts.strftime("%Y-%m"))
                 fc_week_values.append(int(round(forecast_val)))
 
-    # ------------------------------------------------------------------
-    # 3) LONG-WINDOW SEASONALITY (Jan–Dec, multi-year) 
-    # ------------------------------------------------------------------
-    # Use a separate, longer pull so earlier months have data.
+    # LONG-WINDOW SEASONALITY (Jan–Dec, multi-year) 
     try:
         df_long = load_sla_data(days=3650)  # ~10 years; adjust if you want
     except Exception as e:
@@ -1039,7 +992,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         df_long["date"] = pd.to_datetime(df_long["date"])
         df_long["total_cases"] = df_long["total_cases"].astype(int)
 
-        # --------- 3a) Seasonality – total volume by month (all topics) ---------
+        #  3a) Seasonality – total volume by month (all topics)
         daily_long = (
             df_long.groupby("date", as_index=False)["total_cases"]
             .sum()
@@ -1055,7 +1008,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         month_totals = [int(month_counts.get(m, 0)) for m in range(1, 13)]
         month_has_data = [month_counts.get(m, 0) > 0 for m in range(1, 13)]
 
-        # --------- 3b) Seasonal peaks by topic (month-of-year, top 5 reasons) ---
+        # 3b) Seasonal peaks by topic (month-of-year, top 5 reasons) 
         if "reason" in df_long.columns:
             df_reason = df_long.copy()
             df_reason["reason"] = (
@@ -1089,7 +1042,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
                     {"label": topic, "data": counts_for_topic}
                 )
 
-            # --------- 3c) Top request topics by volume (bar chart) --------------
+            # 3c) Top request topics by volume (bar chart)
             topic_counts = (
                 df_reason.groupby("reason")["total_cases"]
                 .sum()
@@ -1144,10 +1097,7 @@ def demand_trends_page():
     metrics = get_demand_metrics()
     return render_template("demand_trends.html", **metrics)
 
-
-# -----------------------------------------------------------------------------
 # Route – Analytics (from daily metrics)
-# -----------------------------------------------------------------------------
 
 def build_analytics_cache(df: pd.DataFrame) -> dict:
     """
@@ -1186,9 +1136,7 @@ def build_analytics_cache(df: pd.DataFrame) -> dict:
     if "avg_resolution_hrs" not in df.columns:
         df["avg_resolution_hrs"] = 0.0
 
-    # ------------------------------------------------------------------
     # 1. Cases by neighborhood (top 10, drop zero-volume neighborhoods)
-    # ------------------------------------------------------------------
     neigh_series = (
         df.groupby("neighborhood")["total_cases"]
         .sum()
@@ -1202,9 +1150,7 @@ def build_analytics_cache(df: pd.DataFrame) -> dict:
     neigh_labels = neigh_series.index.tolist()
     neigh_counts = [int(v) for v in neigh_series.values]
 
-    # ------------------------------------------------------------------
     # 2. Cases by department (top 10, drop zero-volume departments)
-    # ------------------------------------------------------------------
     dept_series = (
         df.groupby("department")["total_cases"]
         .sum()
@@ -1218,9 +1164,7 @@ def build_analytics_cache(df: pd.DataFrame) -> dict:
     dept_labels = dept_series.index.tolist()
     dept_counts = [int(v) for v in dept_series.values]
 
-    # ------------------------------------------------------------------
     # 3. Top reasons (top 10 request topics, drop zero-volume reasons)
-    # ------------------------------------------------------------------
     reason_series = (
         df.groupby("reason")["total_cases"]
         .sum()
@@ -1234,10 +1178,7 @@ def build_analytics_cache(df: pd.DataFrame) -> dict:
     reason_labels = reason_series.index.tolist()
     reason_counts = [int(v) for v in reason_series.values]
 
-    # ------------------------------------------------------------------
-    # 4. SLA compliance by department (top 10 by volume, only where
-    #    there are SLA-eligible cases)
-    # ------------------------------------------------------------------
+    # 4. SLA compliance by department (top 10 by volume, only where there are SLA-eligible cases)
     if "sla_eligible_cases" in df.columns and "sla_met_cases" in df.columns:
         dept_sla = (
             df.groupby("department", as_index=False)[
@@ -1264,9 +1205,7 @@ def build_analytics_cache(df: pd.DataFrame) -> dict:
         sla_dept_labels = []
         sla_dept_rates = []
 
-    # ------------------------------------------------------------------
     # 5. Volume by source (all cases, drop zero-volume sources)
-    # ------------------------------------------------------------------
     src_series = (
         df.groupby("source")["total_cases"]
         .sum()
@@ -1280,10 +1219,7 @@ def build_analytics_cache(df: pd.DataFrame) -> dict:
     src_labels = src_series.index.tolist()
     src_counts = [int(v) for v in src_series.values]
 
-    # ------------------------------------------------------------------
-    # 6. Average resolution hours by source (only closed, and only
-    #    where there are closed cases)
-    # ------------------------------------------------------------------
+    # 6. Average resolution hours by source (only closed, and only where there are closed cases)
     if "closed_cases" in df.columns and "avg_resolution_hrs" in df.columns:
         src_df = df.copy()
         src_df["closed_cases"] = src_df["closed_cases"].astype(float)
@@ -1361,9 +1297,7 @@ def api_ping():
         "timestamp": dt.datetime.utcnow().isoformat() + "Z",
     }
     
-# -----------------------------------------------------------------------------
 # Cloud Run–friendly entrypoint
-# -----------------------------------------------------------------------------
 
 if __name__ == "__main__":
     # Cloud Run injects PORT; default to 8080 for local dev

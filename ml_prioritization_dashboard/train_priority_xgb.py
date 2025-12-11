@@ -427,7 +427,6 @@ if hasattr(clf_best, "predict_proba"):
     test_cm = confusion_matrix(y_test, test_pred).tolist()
 else:
     test_proba = best_pipe.predict(X_test)
-    # For safety, still compute confusion matrix & derived metrics using hard preds
     test_pred = (test_proba >= 0.5).astype(int)
     test_accuracy = float(accuracy_score(y_test, test_pred))
     test_precision = float(precision_score(y_test, test_pred, zero_division=0))
@@ -553,7 +552,7 @@ if baseline_report_path.exists():
 # Only gate if we have both metrics
 if baseline_metric is not None and new_metric is not None:
     diff = new_metric - baseline_metric
-    max_allowed_drop = 0.005  # allow tiny noise
+    max_allowed_drop = 0.005
 
     if diff < -max_allowed_drop:
         print(

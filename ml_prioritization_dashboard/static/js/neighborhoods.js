@@ -1,13 +1,15 @@
+// Run after the DOM is ready so we can safely touch the page elements
 document.addEventListener("DOMContentLoaded", () => {
-  // Reuse dark mode preference from other pages
+  // Apply the same dark mode preference that we use on the main dashboard
   try {
     if (localStorage.getItem("b311_dark") === "true") {
       document.body.classList.add("dark-mode");
     }
   } catch (e) {
-    // ignore if localStorage is blocked
+    // If localStorage is blocked, we just skip applying the preference
   }
 
-  // (Optional) you can add more UX behavior here later,
-  // e.g., row hover effects, simple sorting, etc.
+  // At the moment this page is static (server renders the table),
+  // but this JS file is here so we can easily add interactivity later
+  // (for example: sorting columns or adding row click behavior).
 });

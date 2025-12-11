@@ -1,22 +1,27 @@
 :root {
+  /* Base background and card colors for the light theme */
   --bg-shell: #f5f7fb;
   --bg-card: #ffffff;
   --bg-card-soft: #f8fafc;
   --border-subtle: #e2e8f0;
 
+  /* Header/nav colors */
   --nav-bg: #021b3b;
   --nav-bg-alt: #0b2648;
   --nav-border: #0f2f5f;
 
+  /* Accent colors used for text and pills */
   --accent-blue: #2563eb;
   --accent-red: #ff4c4c;
   --accent-orange: #f97316;
   --accent-green: #16a34a;
 
+  /* Global text colors */
   --text-main: #0f172a;
   --text-muted: #6b7280;
 }
 
+/* Dark mode overrides the CSS variables above */
 body.dark-mode {
   --bg-shell: #020617;
   --bg-card: #02081f;
@@ -26,10 +31,12 @@ body.dark-mode {
   --text-muted: #9ca3af;
 }
 
+/* Use border-box so padding + border are included in element width/height */
 * {
   box-sizing: border-box;
 }
 
+/* Global body styles for font, background, and text color */
 body {
   margin: 0;
   padding: 0;
@@ -38,8 +45,7 @@ body {
   color: var(--text-main);
 }
 
-/* ----------------- TOP NAV ----------------- */
-
+/* Top nav bar at the top of every dashboard page */
 .top-nav {
   background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
   border-bottom: 1px solid var(--nav-border);
@@ -50,12 +56,14 @@ body {
   justify-content: space-between;
 }
 
+/* Left side of the top nav (city badge + title) */
 .top-nav-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+/* Small “City of Boston” label */
 .city-badge {
   border-radius: 4px;
   border: 1px solid rgba(255,255,255,0.6);
@@ -66,6 +74,7 @@ body {
   font-weight: 600;
 }
 
+/* Container for main + subtitle text in the top bar */
 .top-nav-title {
   display: flex;
   flex-direction: column;
@@ -82,6 +91,7 @@ body {
   opacity: 0.85;
 }
 
+/* Right side of the top nav (env + status pills) */
 .top-nav-right {
   display: flex;
   align-items: center;
@@ -89,6 +99,7 @@ body {
   font-size: 12px;
 }
 
+/* Pill showing environment (internal / pilot) */
 .env-pill {
   border-radius: 999px;
   padding: 3px 10px;
@@ -97,6 +108,7 @@ body {
   background: rgba(15,23,42,0.4);
 }
 
+/* “System online” pill with green dot */
 .system-status-pill {
   display: inline-flex;
   align-items: center;
@@ -117,12 +129,12 @@ body {
   box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
 }
 
-/* ----------------- PAGE SHELL ----------------- */
-
+/* Outer wrapper that adds padding around the whole page */
 .page-shell {
   padding: 20px 32px 40px;
 }
 
+/* On smaller screens, reduce side padding */
 @media (max-width: 768px) {
   .top-nav,
   .page-shell {
@@ -130,8 +142,7 @@ body {
   }
 }
 
-/* ----------------- TABS ----------------- */
-
+/* Tab bar for navigating between Command Center / Neighborhoods / etc. */
 .page-tabs {
   margin-top: 10px;
   display: inline-flex;
@@ -141,6 +152,7 @@ body {
   gap: 2px;
 }
 
+/* Individual tab element */
 .page-tab {
   padding: 5px 12px;
   font-size: 11px;
@@ -150,13 +162,13 @@ body {
   font-weight: 500;
 }
 
+/* Style for the active tab */
 .page-tab-active {
   background: #ffffff;
   color: #111827;
 }
 
-/* ----------------- HERO ----------------- */
-
+/* Hero card that explains what the Neighborhood Performance page shows */
 .hero-card {
   background: var(--bg-card);
   border-radius: 16px;
@@ -171,24 +183,28 @@ body {
   gap: 16px;
 }
 
+/* Main hero title text */
 .hero-main-title {
   font-size: 22px;
   font-weight: 650;
   margin-bottom: 4px;
 }
 
+/* Short description under the hero title */
 .hero-subtitle {
   font-size: 13px;
   color: var(--text-muted);
   max-width: 540px;
 }
 
+/* Extra line that explains how metrics are computed */
 .hero-meta {
   font-size: 11px;
   color: var(--text-muted);
   margin-top: 6px;
 }
 
+/* Right-hand hero column with planning note */
 .hero-side {
   min-width: 220px;
   display: flex;
@@ -200,8 +216,7 @@ body {
   text-align: right;
 }
 
-/* ----------------- KPI STRIP ----------------- */
-
+/* Horizontal strip of KPI cards at the top of the page */
 .kpi-strip {
   display: flex;
   flex-wrap: wrap;
@@ -209,6 +224,7 @@ body {
   margin-bottom: 16px;
 }
 
+/* Single KPI card container */
 .kpi-card {
   flex: 1;
   min-width: 170px;
@@ -219,6 +235,7 @@ body {
   box-shadow: 0 6px 18px rgba(15,23,42,0.05);
 }
 
+/* KPI label (small text at the top of the card) */
 .kpi-label {
   font-size: 11px;
   text-transform: uppercase;
@@ -226,14 +243,14 @@ body {
   color: var(--text-muted);
 }
 
+/* KPI value (large number in the card) */
 .kpi-value {
   font-size: 22px;
   font-weight: 700;
   margin-top: 4px;
 }
 
-/* ----------------- PANEL + TABLE ----------------- */
-
+/* Generic card-style panel used for the table */
 .panel {
   background: var(--bg-card);
   border-radius: 12px;
@@ -242,28 +259,33 @@ body {
   padding: 12px 14px;
 }
 
+/* Panel title above the table */
 .panel-title {
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 2px;
 }
 
+/* Panel subtitle that explains how to read the table */
 .panel-subtitle {
   font-size: 11px;
   color: var(--text-muted);
   margin-bottom: 8px;
 }
 
+/* Base style for the neighborhood comparison table */
 .neighborhood-table {
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
 }
 
+/* Slight background on table header row */
 .neighborhood-table thead {
   background: var(--bg-card-soft);
 }
 
+/* Shared cell padding and borders */
 .neighborhood-table th,
 .neighborhood-table td {
   padding: 8px 6px;
@@ -271,6 +293,7 @@ body {
   text-align: left;
 }
 
+/* Header cells: uppercase and muted */
 .neighborhood-table th {
   font-size: 11px;
   text-transform: uppercase;
@@ -278,12 +301,12 @@ body {
   color: var(--text-muted);
 }
 
+/* Alternate row shading for readability */
 .neighborhood-table tbody tr:nth-child(even) {
   background: #f9fafb;
 }
 
-/* Pills */
-
+/* Small red pill used to highlight the number of critical cases */
 .crit-pill {
   display: inline-block;
   padding: 2px 6px;
@@ -293,6 +316,7 @@ body {
   color: #b91c1c;
 }
 
+/* Blue pill showing the average ML priority score */
 .score-pill {
   display: inline-block;
   padding: 2px 6px;
@@ -302,6 +326,7 @@ body {
   color: #1d4ed8;
 }
 
+/* Text style when there is no table data */
 .no-data-text {
   font-size: 12px;
   color: var(--text-muted);

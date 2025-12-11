@@ -4,19 +4,22 @@
   <meta charset="UTF-8" />
   <title>Boston 311 – Demand Trends</title>
 
-  <!-- Font -->
+  <!-- Load Inter font so this page visually matches the command center -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+    rel="stylesheet"
+  >
 
-  <!-- Page CSS -->
+  <!-- Page-specific CSS for Demand Trends layout and styling -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/demand_trends.css') }}">
 
-  <!-- Chart.js -->
+  <!-- Chart.js is used to render all the line and bar charts on this page -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-  <!-- Top nav -->
+  <!-- Top navigation bar shared across all dashboard pages -->
   <div class="top-nav">
     <div class="top-nav-left">
       <div class="city-badge">City of Boston</div>
@@ -37,7 +40,7 @@
   </div>
 
   <div class="page-shell">
-    <!-- Tabs -->
+    <!-- Tabs for switching between different parts of the ML dashboard -->
     <div class="page-tabs">
       <a href="/" class="page-tab">Command Center</a>
       <a href="/work-queues" class="page-tab">Work Queues</a>
@@ -47,7 +50,7 @@
       <a href="/analytics" class="page-tab">Analytics</a>
     </div>
 
-    <!-- Hero -->
+    <!-- Hero card that explains how to use the Demand Trends view -->
     <div class="hero-card">
       <div class="hero-title">Demand Trends &amp; Forecasting</div>
       <div class="hero-subtitle">
@@ -61,22 +64,23 @@
       </div>
     </div>
 
-    <!-- Top row charts -->
+    <!-- Top row: weekly history on the left, forecast on the right -->
     <div class="charts-grid charts-grid-top">
-      <!-- Weekly history -->
+      <!-- Weekly history line chart -->
       <div class="chart-card">
         <div class="chart-header">
           <div class="chart-title">Weekly case volume (last 12 months)</div>
           <div class="chart-subtitle">History only – full weeks, no forecast mixed in.</div>
         </div>
         {% if hist_week_labels|length == 0 %}
+          <!-- Graceful message when there is no weekly data -->
           <div class="chart-empty">No historical volume data available yet.</div>
         {% else %}
           <canvas id="weeklyHistoryChart"></canvas>
         {% endif %}
       </div>
 
-      <!-- Forecast -->
+      <!-- Forecast line chart -->
       <div class="chart-card">
         <div class="chart-header">
           <div class="chart-title">Monthly trend forecast (next 6 months)</div>
@@ -92,9 +96,9 @@
       </div>
     </div>
 
-    <!-- Second row charts -->
+    <!-- Second row: seasonality + top topics -->
     <div class="charts-grid">
-      <!-- Monthly seasonality -->
+      <!-- Monthly seasonality bar chart -->
       <div class="chart-card">
         <div class="chart-header">
           <div class="chart-title">Seasonality – total volume by month</div>
@@ -109,7 +113,7 @@
         {% endif %}
       </div>
 
-      <!-- Top topics -->
+      <!-- Top topics horizontal bar chart -->
       <div class="chart-card">
         <div class="chart-header">
           <div class="chart-title">Top request topics (last 12 months)</div>
@@ -125,7 +129,7 @@
       </div>
     </div>
 
-    <!-- Full-width seasonal peaks by topic -->
+    <!-- Bottom full-width chart: seasonal peaks by topic -->
     <div class="chart-card chart-card-full">
       <div class="chart-header">
         <div class="chart-title">Seasonal peaks by topic</div>
@@ -142,7 +146,7 @@
     </div>
   </div>
 
-  <!-- Inline data blob for JS -->
+  <!-- Inline JSON blob that passes all the arrays into the JS file -->
   <script id="demand-data" type="application/json">
     {{
       {
@@ -160,7 +164,7 @@
     }}
   </script>
 
-  <!-- Page JS -->
+  <!-- Demand Trends JavaScript that reads the JSON above and renders all charts -->
   <script src="{{ url_for('static', filename='js/demand_trends.js') }}" defer></script>
 </body>
 </html>

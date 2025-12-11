@@ -1,14 +1,15 @@
+// Simple JS for the SLA Performance page: apply dark mode, render charts, and drive the overdue map + filter.
 document.addEventListener("DOMContentLoaded", () => {
-  // ---------------- Dark mode ----------------
+  // Apply the same dark mode preference used on other pages
   try {
     if (localStorage.getItem("b311_dark") === "true") {
       document.body.classList.add("dark-mode");
     }
   } catch (_) {
-    // ignore if localStorage blocked
+    // If localStorage is blocked (some browsers/privacy modes), we just skip it
   }
 
-  // ---------------- Data from inline JSON ----------------
+  // Read the pre-computed SLA metrics and overdue cases that the backend embedded as JSON
   let pageData = {
     overallSlaRate: 0,
     deptLabels: [],
@@ -36,12 +37,13 @@ document.addEventListener("DOMContentLoaded", () => {
     overdueMapCases
   } = pageData;
 
-  // ---------------- Chart.js plugin: center text for gauge ----------------
+  // Small Chart.js plugin so we can write text in the center of the gauge
   if (window.Chart) {
     Chart.register({
       id: "centerTextPlugin",
       afterDraw(chart, args, options) {
         if (!options || !options.text) return;
+
         const { ctx, chartArea } = chart;
         const text = options.text;
 
@@ -60,12 +62,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ---------------- SLA Gauge ----------------
+  // Render a half-doughnut gauge that shows the overall SLA compliance percentage
   (function renderSlaGauge() {
     const canvas = document.getElementById("slaGaugeChart");
     if (!canvas || !window.Chart) return;
 
     const gaugePct = typeof overallSlaRate === "number" ? overallSlaRate : 0;
+
     new Chart(canvas, {
       type: "doughnut",
       data: {
@@ -81,9 +84,9 @@ document.addEventListener("DOMContentLoaded", () => {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        cutout: "65%",
-        rotation: -90,
-        circumference: 180,
+        cutout: "65%",        // makes the doughnut thick so there is room for center text
+        rotation: -90,        // start angle (to draw a half gauge)
+        circumference: 180,   // only draw half the circle
         plugins: {
           legend: { display: false },
           tooltip: { enabled: true },
@@ -95,7 +98,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // ---------------- SLA by Department (horizontal bar) ----------------
+  // Render a horizontal bar chart that compares SLA compliance by department
   (function renderSlaDeptBar() {
     const canvas = document.getElementById("slaDeptBarChart");
     if (!canvas || !window.Chart || !deptLabels || !deptLabels.length) return;
@@ -119,6 +122,7 @@ document.addEventListener("DOMContentLoaded", () => {
             beginAtZero: true,
             max: 100,
             ticks: {
+              // Show values like “87%” on the x-axis
               callback: (value) => value + "%"
             }
           }
@@ -130,11 +134,12 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // ---------------- Average Resolution Time by Service ----------------
+  // Render a vertical bar chart that shows average resolution time per service in hours
   (function renderArtServiceBar() {
     const canvas = document.getElementById("artServiceBarChart");
-    if (!canvas || !window.Chart || !artServiceLabels || !artServiceLabels.length)
+    if (!canvas || !window.Chart || !artServiceLabels || !artServiceLabels.length) {
       return;
+    }
 
     new Chart(canvas, {
       type: "bar",
@@ -160,44 +165,49 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   })();
 
-  // -------------------------------------------------------------------
-  // Shared state for overdue map + dropdown filter
-  // -------------------------------------------------------------------
+  // Shared variables so the map and filter logic can talk to each other
   let mapInstance = null;
   let markerGroup = null;
-  const markerIndex = []; // { marker, neighborhood }
+  const markerIndex = []; // store { marker, neighborhood } so we can filter them later
 
-  // ---------------- Overdue Map (Leaflet) ----------------
+  // Build a Leaflet map that plots overdue cases as small circle markers
   (function renderSlaMap() {
     const mapDiv = document.getElementById("slaMap");
     if (!mapDiv || !window.L) return;
 
+    // If we don’t have any overdue cases with coordinates, show a friendly message instead
     if (!overdueMapCases || !overdueMapCases.length) {
       mapDiv.innerHTML =
         '<p class="empty-text">No overdue cases with map coordinates.</p>';
       return;
     }
 
+    // Center the map roughly on Boston with scroll zoom disabled (so the page scroll feels normal)
     mapInstance = L.map("slaMap", { scrollWheelZoom: false }).setView(
       [42.32, -71.06],
       11
     );
 
+    // Use OpenStreetMap tiles as the base layer
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 18,
       attribution: "&copy; OpenStreetMap contributors"
     }).addTo(mapInstance);
 
+    // Group of markers so we can easily show/hide them when filtering
     markerGroup = L.layerGroup().addTo(mapInstance);
 
     const bounds = [];
 
     overdueMapCases.forEach((c) => {
+      // Handle both numeric and string lat/lon
       const lat = typeof c.latitude === "number" ? c.latitude : parseFloat(c.latitude);
       const lon = typeof c.longitude === "number" ? c.longitude : parseFloat(c.longitude);
       if (!isFinite(lat) || !isFinite(lon)) return;
 
       const neighborhood = c.neighborhood || "Unknown";
+
+      // Show how many days late the case is (fall back to days open if needed)
       const daysOver =
         c.days_overdue != null
           ? c.days_overdue
@@ -224,15 +234,16 @@ document.addEventListener("DOMContentLoaded", () => {
       bounds.push([lat, lon]);
     });
 
+    // Zoom the map so all overdue markers are in view
     if (bounds.length) {
       const group = L.featureGroup(
-        bounds.map((b) => L.marker(b)) // only for bounds calc
+        bounds.map((b) => L.marker(b)) // we only use these markers to compute bounds
       );
       mapInstance.fitBounds(group.getBounds().pad(0.2));
     }
   })();
 
-  // ---------------- Overdue table + map neighborhood filter ----------------
+  // Hook up the neighborhood dropdown so it filters both the overdue table and the map
   (function setupOverdueFilter() {
     const select = document.getElementById("overdueNeighborhoodFilter");
     const table = document.getElementById("overdueTable");
@@ -244,13 +255,13 @@ document.addEventListener("DOMContentLoaded", () => {
     function applyFilter() {
       const val = select.value || "ALL";
 
-      // Filter table rows
+      // Filter table rows by checking the data-neighborhood attribute
       rows.forEach((tr) => {
         const n = tr.getAttribute("data-neighborhood") || "Unknown";
         tr.style.display = val === "ALL" || n === val ? "" : "none";
       });
 
-      // Filter map markers
+      // Filter the map markers using the same neighborhood value
       if (markerGroup && markerIndex.length) {
         markerIndex.forEach(({ marker, neighborhood }) => {
           const show = val === "ALL" || neighborhood === val;
@@ -265,8 +276,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     }
 
+    // Re-run the filter whenever the dropdown changes
     select.addEventListener("change", applyFilter);
-    // Initial run
+    // Run once on page load so everything starts in a consistent state
     applyFilter();
   })();
 });

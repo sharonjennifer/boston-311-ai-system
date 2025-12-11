@@ -1,22 +1,27 @@
 :root {
+  /* Basic color tokens for the light theme */
   --bg-shell: #f5f7fb;
   --bg-card: #ffffff;
   --bg-card-soft: #f8fafc;
   --border-subtle: #e2e8f0;
 
+  /* Colors used in the top navigation bar */
   --nav-bg: #021b3b;
   --nav-bg-alt: #0b2648;
   --nav-border: #0f2f5f;
 
+  /* Accent colors for charts and pills */
   --accent-blue: #2563eb;
   --accent-green: #16a34a;
   --accent-orange: #f97316;
   --accent-purple: #8b5cf6;
 
+  /* Default text colors */
   --text-main: #0f172a;
   --text-muted: #6b7280;
 }
 
+/* Override the color variables when dark mode is enabled */
 body.dark-mode {
   --bg-shell: #020617;
   --bg-card: #02081f;
@@ -26,10 +31,12 @@ body.dark-mode {
   --text-muted: #9ca3af;
 }
 
+/* Make box model predictable for all elements */
 * {
   box-sizing: border-box;
 }
 
+/* Global body styling (font, background, and text color) */
 body {
   margin: 0;
   padding: 0;
@@ -40,6 +47,7 @@ body {
 
 /* Top nav */
 
+/* Layout and gradient styling for the top navigation bar */
 .top-nav {
   background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
   border-bottom: 1px solid var(--nav-border);
@@ -50,12 +58,14 @@ body {
   justify-content: space-between;
 }
 
+/* Container for the left side of the nav (badge + title) */
 .top-nav-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+/* Small “City of Boston” label */
 .city-badge {
   border-radius: 4px;
   border: 1px solid rgba(255,255,255,0.6);
@@ -66,6 +76,7 @@ body {
   font-weight: 600;
 }
 
+/* Wrapper for the main and sub title in the nav */
 .top-nav-title {
   display: flex;
   flex-direction: column;
@@ -82,6 +93,7 @@ body {
   opacity: 0.85;
 }
 
+/* Container for environment + status on the right side */
 .top-nav-right {
   display: flex;
   align-items: center;
@@ -89,6 +101,7 @@ body {
   font-size: 12px;
 }
 
+/* Pill showing environment information (e.g., internal / pilot) */
 .env-pill {
   border-radius: 999px;
   padding: 3px 10px;
@@ -97,6 +110,7 @@ body {
   background: rgba(15,23,42,0.4);
 }
 
+/* Pill that shows current system status */
 .system-status-pill {
   display: inline-flex;
   align-items: center;
@@ -109,6 +123,7 @@ body {
   font-weight: 500;
 }
 
+/* Small green dot to indicate “online” */
 .status-dot {
   width: 7px;
   height: 7px;
@@ -119,10 +134,12 @@ body {
 
 /* Page shell */
 
+/* Main content padding for the page */
 .page-shell {
   padding: 20px 32px 40px;
 }
 
+/* Reduce left-right padding on small screens */
 @media (max-width: 900px) {
   .top-nav,
   .page-shell {
@@ -132,6 +149,7 @@ body {
 
 /* Tabs */
 
+/* Rounded tabs container used to switch between dashboard pages */
 .page-tabs {
   margin-top: 10px;
   display: inline-flex;
@@ -141,6 +159,7 @@ body {
   gap: 2px;
 }
 
+/* Individual tab styling */
 .page-tab {
   padding: 5px 12px;
   font-size: 11px;
@@ -150,6 +169,7 @@ body {
   font-weight: 500;
 }
 
+/* Highlight the currently active tab */
 .page-tab-active {
   background: #ffffff;
   color: #111827;
@@ -157,6 +177,7 @@ body {
 
 /* Hero */
 
+/* Card at the top of the page that explains what this view is for */
 .hero-card {
   background: var(--bg-card);
   border-radius: 16px;
@@ -187,6 +208,7 @@ body {
 
 /* Charts grid */
 
+/* Two-column responsive grid for all chart cards */
 .charts-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -194,6 +216,7 @@ body {
   margin-bottom: 16px;
 }
 
+/* Stack charts in a single column on smaller screens */
 @media (max-width: 900px) {
   .charts-grid {
     grid-template-columns: minmax(0, 1fr);
@@ -202,6 +225,7 @@ body {
 
 /* Chart cards */
 
+/* Shared styling for each chart container */
 .chart-card {
   background: var(--bg-card);
   border-radius: 14px;
@@ -210,6 +234,7 @@ body {
   box-shadow: 0 6px 18px rgba(15,23,42,0.05);
 }
 
+/* Header area inside each chart card (title + subtitle) */
 .chart-header {
   display: flex;
   flex-direction: column;
@@ -227,6 +252,7 @@ body {
   color: var(--text-muted);
 }
 
+/* Message shown instead of a chart when there is no data */
 .chart-empty {
   font-size: 12px;
   color: var(--text-muted);
@@ -235,6 +261,7 @@ body {
 
 /* Canvas */
 
+/* Make canvas stretch to full width while keeping a reasonable height */
 canvas {
   width: 100%;
   max-height: 260px;

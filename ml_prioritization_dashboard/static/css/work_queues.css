@@ -1,4 +1,5 @@
 :root {
+  /* Light mode theme variables (backgrounds, borders, accents, text, priorities) */
   --bg-shell: #f5f7fb;
   --bg-card: #ffffff;
   --bg-card-soft: #f8fafc;
@@ -19,6 +20,7 @@
   --prio-low: #16a34a;
 }
 
+/* Dark mode overrides – applied when <body> has the dark-mode class */
 body.dark-mode {
   --bg-shell: #020617;
   --bg-card: #02081f;
@@ -28,10 +30,12 @@ body.dark-mode {
   --text-muted: #9ca3af;
 }
 
+/* Use border-box so padding and borders don’t break our layout math */
 * {
   box-sizing: border-box;
 }
 
+/* Global body styling */
 body {
   margin: 0;
   padding: 0;
@@ -42,6 +46,7 @@ body {
 
 /* ----------------- TOP NAV ----------------- */
 
+/* Shared top navigation bar with city branding */
 .top-nav {
   background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
   border-bottom: 1px solid var(--nav-border);
@@ -52,12 +57,14 @@ body {
   justify-content: space-between;
 }
 
+/* Left side: “City of Boston” + page title */
 .top-nav-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+/* Small city badge in the nav */
 .city-badge {
   border-radius: 4px;
   border: 1px solid rgba(255,255,255,0.6);
@@ -68,6 +75,7 @@ body {
   font-weight: 600;
 }
 
+/* Wrap main and subtitle into a vertical column */
 .top-nav-title {
   display: flex;
   flex-direction: column;
@@ -84,6 +92,7 @@ body {
   opacity: 0.85;
 }
 
+/* Right side: environment pill + system status */
 .top-nav-right {
   display: flex;
   align-items: center;
@@ -91,6 +100,7 @@ body {
   font-size: 12px;
 }
 
+/* Environment pill (Internal / Pilot, etc.) */
 .env-pill {
   border-radius: 999px;
   padding: 3px 10px;
@@ -99,6 +109,7 @@ body {
   background: rgba(15,23,42,0.4);
 }
 
+/* Status pill with green dot ("System online") */
 .system-status-pill {
   display: inline-flex;
   align-items: center;
@@ -119,10 +130,14 @@ body {
   box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
 }
 
+/* ----------------- PAGE SHELL ----------------- */
+
+/* Wrapper around all page content */
 .page-shell {
   padding: 20px 32px 40px;
 }
 
+/* Reduce horizontal padding on smaller screens */
 @media (max-width: 768px) {
   .top-nav,
   .page-shell {
@@ -132,6 +147,7 @@ body {
 
 /* ----------------- TABS ----------------- */
 
+/* Pill-style tab navigation under the top nav */
 .page-tabs {
   margin-bottom: 10px;
   display: inline-flex;
@@ -141,6 +157,7 @@ body {
   gap: 2px;
 }
 
+/* Each tab is a small pill link */
 .page-tab {
   padding: 5px 12px;
   font-size: 11px;
@@ -150,6 +167,7 @@ body {
   font-weight: 500;
 }
 
+/* Styling for the active tab (Work Queues on this page) */
 .page-tab-active {
   background: #ffffff;
   color: #111827;
@@ -157,6 +175,7 @@ body {
 
 /* ----------------- HERO ----------------- */
 
+/* Hero card summarizing what this page is for */
 .hero-card {
   background: var(--bg-card);
   border-radius: 16px;
@@ -166,18 +185,21 @@ body {
   margin-bottom: 14px;
 }
 
+/* Main hero title */
 .hero-title {
   font-size: 22px;
   font-weight: 650;
   margin-bottom: 4px;
 }
 
+/* Short description of the page usage */
 .hero-subtitle {
   font-size: 13px;
   color: var(--text-muted);
   max-width: 700px;
 }
 
+/* Extra note about the underlying ML score */
 .hero-meta {
   font-size: 11px;
   color: var(--text-muted);
@@ -186,6 +208,7 @@ body {
 
 /* ----------------- FILTERS ----------------- */
 
+/* Card that holds the department selector form */
 .filters-card {
   background: var(--bg-card);
   border-radius: 12px;
@@ -194,6 +217,7 @@ body {
   margin-bottom: 12px;
 }
 
+/* Header row for the filter area */
 .filters-header {
   display: flex;
   justify-content: space-between;
@@ -202,6 +226,7 @@ body {
   margin-bottom: 4px;
 }
 
+/* Title and hint inside the filter header */
 .filters-title {
   font-size: 13px;
   font-weight: 600;
@@ -212,6 +237,7 @@ body {
   color: var(--text-muted);
 }
 
+/* Row that holds label + dropdown + button */
 .filters-row {
   display: flex;
   flex-wrap: wrap;
@@ -219,12 +245,14 @@ body {
   align-items: center;
 }
 
+/* General label styling (here used for the department dropdown) */
 label {
   font-size: 12px;
   font-weight: 600;
   margin-right: 3px;
 }
 
+/* Base styling for <select> controls */
 select {
   padding: 5px 8px;
   border-radius: 7px;
@@ -234,6 +262,7 @@ select {
   min-width: 200px;
 }
 
+/* Focus state to make keyboard navigation clearer */
 select:focus {
   outline: none;
   border-color: var(--accent-blue);
@@ -241,6 +270,7 @@ select:focus {
   background: #ffffff;
 }
 
+/* Generic pill-shaped primary button */
 .btn {
   padding: 6px 14px;
   border-radius: 999px;
@@ -259,6 +289,7 @@ select:focus {
 
 /* ----------------- DEPT HEADER ----------------- */
 
+/* Card that shows which department is selected and its summary stats */
 .dept-header-card {
   background: var(--bg-card);
   border-radius: 12px;
@@ -268,11 +299,13 @@ select:focus {
   font-size: 13px;
 }
 
+/* Department name shown in bold */
 .dept-name {
   font-weight: 600;
   margin-bottom: 4px;
 }
 
+/* Smaller text with open count, critical count, avg score */
 .dept-meta {
   font-size: 11px;
   color: var(--text-muted);
@@ -280,6 +313,7 @@ select:focus {
 
 /* ----------------- QUEUE LIST ----------------- */
 
+/* Card wrapper for the list of cases in the queue */
 .queue-list-card {
   background: var(--bg-card);
   border-radius: 12px;
@@ -287,6 +321,7 @@ select:focus {
   padding: 6px 0;
 }
 
+/* Each case row inside the queue list */
 .queue-item {
   display: flex;
   justify-content: space-between;
@@ -296,20 +331,24 @@ select:focus {
   font-size: 12px;
 }
 
+/* Remove border on the very first row so it blends with the card */
 .queue-item:first-child {
   border-top: none;
 }
 
+/* Main content column for each case */
 .queue-main {
   flex: 1;
   min-width: 0;
 }
 
+/* Case title line (contains “Case XXXX” link) */
 .queue-title {
   font-size: 13px;
   font-weight: 600;
 }
 
+/* Link styling for the case anchor (prototype-only link) */
 .queue-title a {
   color: var(--accent-blue);
   text-decoration: none;
@@ -319,6 +358,7 @@ select:focus {
   text-decoration: underline;
 }
 
+/* One-line neighborhood + reason summary */
 .queue-subline {
   margin-top: 2px;
   color: var(--text-muted);
@@ -327,6 +367,7 @@ select:focus {
   text-overflow: ellipsis;
 }
 
+/* Row of small tags: segment, status, high/medium/low priority */
 .queue-tags {
   margin-top: 4px;
   display: flex;
@@ -334,6 +375,7 @@ select:focus {
   gap: 4px;
 }
 
+/* Base “pill” style for tags */
 .tag {
   padding: 2px 6px;
   border-radius: 999px;
@@ -343,18 +385,21 @@ select:focus {
   color: #374151;
 }
 
+/* Segment tag (e.g., “Critical segment”) */
 .tag-segment {
   background: #fee2e2;
   border-color: #fecaca;
   color: #b91c1c;
 }
 
+/* Status tag (we currently use “Unassigned” by default) */
 .tag-status {
   background: #e0f2fe;
   border-color: #bae6fd;
   color: #075985;
 }
 
+/* Priority tags – high / medium / low based on model score */
 .tag-priority-high {
   background: #fee2e2;
   border-color: #fecaca;
@@ -373,6 +418,7 @@ select:focus {
   color: #166534;
 }
 
+/* Row of action buttons under each case (Assign, In-progress, Add note) */
 .queue-buttons {
   margin-top: 6px;
   display: inline-flex;
@@ -380,6 +426,7 @@ select:focus {
   flex-wrap: wrap;
 }
 
+/* Base styling for the small queue action buttons */
 .queue-btn {
   padding: 3px 10px;
   border-radius: 999px;
@@ -389,12 +436,14 @@ select:focus {
   cursor: pointer;
 }
 
+/* Primary version used for the “Assign to crew…” button */
 .queue-btn-primary {
   border-color: var(--accent-blue);
   background: linear-gradient(135deg, var(--accent-blue), #3b82f6);
   color: #ffffff;
 }
 
+/* Right-hand side column with the numeric priority score */
 .queue-side {
   min-width: 80px;
   text-align: right;
@@ -403,21 +452,25 @@ select:focus {
   color: var(--accent-red);
 }
 
+/* Larger font for the numeric priority score */
 .queue-score {
   font-weight: 700;
   font-size: 14px;
 }
 
+/* Generic muted text for empty states */
 .empty-text {
   font-size: 12px;
   color: var(--text-muted);
   margin-top: 8px;
 }
 
+/* Inner padding for the “no cases” message */
 .queue-empty-inner {
   padding: 8px 14px;
 }
 
+/* Small footnote at the bottom (e.g., top 100 cases) */
 .queue-footnote {
   margin-top: 8px;
 }

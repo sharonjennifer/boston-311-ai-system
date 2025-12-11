@@ -1,9 +1,6 @@
 """
-monitor_model.py
-
 Model monitoring script for the Boston 311 Priority Dashboard.
 
-What it does:
 - Reads recent predictions + labels from BigQuery
   (boston311-mlops.boston311_service.cases_ranking_ml)
 - Computes performance metrics over a sliding lookback window:
@@ -34,18 +31,14 @@ from google.cloud import bigquery
 from sklearn.metrics import roc_auc_score, mean_squared_error
 import numpy as np
 
-# ---------------------------------------------------------------------------
 # Logging config
-# ---------------------------------------------------------------------------
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s | %(levelname)s | %(message)s",
 )
 
-# ---------------------------------------------------------------------------
 # Core config – adjust these if your schema changes
-# ---------------------------------------------------------------------------
 
 PROJECT_ID = os.getenv("B311_PROJECT_ID", "boston311-mlops")
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
@@ -70,18 +63,14 @@ LOOKBACK_DAYS = int(os.getenv("MONITOR_LOOKBACK_DAYS", "30"))
 MIN_AUC = float(os.getenv("MONITOR_MIN_AUC", "0.80"))
 MAX_RMSE = float(os.getenv("MONITOR_MAX_RMSE", "0.30"))
 
-# ---------------------------------------------------------------------------
 # Simple data drift check: class balance
-# ---------------------------------------------------------------------------
 # Baseline positive rate estimated from training data (or logs).
 BASELINE_POS_RATE = float(os.getenv("MONITOR_BASELINE_POS_RATE", "0.65"))
 
 # Maximum allowed absolute difference in class balance before we call it drift.
 MAX_CLASS_BALANCE_DRIFT = float(os.getenv("MONITOR_MAX_CLASS_DRIFT", "0.10"))
 
-# ---------------------------------------------------------------------------
-# Email notification config (all from env vars, no secrets in code)
-# ---------------------------------------------------------------------------
+# Email notification config 
 
 MONITOR_EMAIL_TO = os.getenv("MONITOR_EMAIL_TO", "")  # comma-separated emails
 MONITOR_EMAIL_FROM = os.getenv("MONITOR_EMAIL_FROM", "")
@@ -91,10 +80,7 @@ MONITOR_SMTP_USER = os.getenv("MONITOR_SMTP_USER", "")
 MONITOR_SMTP_PASS = os.getenv("MONITOR_SMTP_PASS", "")
 MONITOR_SMTP_USE_TLS = os.getenv("MONITOR_SMTP_USE_TLS", "true").lower() == "true"
 
-
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 def get_bq_client() -> bigquery.Client:
     """Create a BigQuery client with the configured project + location."""
@@ -193,7 +179,7 @@ def fetch_recent_data(client: bigquery.Client):
         LOOKBACK_DAYS,
     )
 
-    # IMPORTANT: disable BigQuery Storage API to avoid permission errors
+    # disable BigQuery Storage API to avoid permission errors
     df = client.query(query, job_config=job_config).to_dataframe(
         create_bqstorage_client=False
     )
@@ -340,10 +326,7 @@ def send_email_notification(subject: str, body: str) -> None:
     except Exception as e:
         logging.warning("Failed to send email notification: %s", e)
 
-
-# ---------------------------------------------------------------------------
 # Main entrypoint
-# ---------------------------------------------------------------------------
 
 def main() -> int:
     client = get_bq_client()

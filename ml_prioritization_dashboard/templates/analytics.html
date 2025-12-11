@@ -4,20 +4,22 @@
   <meta charset="UTF-8" />
   <title>Boston 311 – Analytics</title>
 
-  <!-- Font -->
+  <!-- Load Inter font for the dashboard UI -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Page CSS -->
+  <!-- Page-specific CSS for the Analytics tab -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics.css') }}">
 
-  <!-- Chart.js -->
+  <!-- Chart.js library for all the visualizations on this page -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
+  <!-- Top navigation bar shared across dashboard pages -->
   <div class="top-nav">
     <div class="top-nav-left">
+      <!-- Small badge to show this is the City of Boston dashboard -->
       <div class="city-badge">City of Boston</div>
       <div class="top-nav-title">
         <div class="top-nav-title-main">311 Analytics</div>
@@ -27,7 +29,9 @@
       </div>
     </div>
     <div class="top-nav-right">
+      <!-- Environment label so we remember this is not production -->
       <div class="env-pill">Environment: Internal • Pilot model v1.0</div>
+      <!-- Simple system status indicator -->
       <div class="system-status-pill">
         <span class="status-dot"></span>
         System online
@@ -35,18 +39,20 @@
     </div>
   </div>
 
+  <!-- Main page container -->
   <div class="page-shell">
-    <!-- Tabs -->
+    <!-- Tabs to navigate between different dashboard views -->
     <div class="page-tabs">
       <a href="/" class="page-tab">Command Center</a>
       <a href="/work-queues" class="page-tab">Work Queues</a>
       <a href="/neighborhoods" class="page-tab">Neighborhood performance</a>
       <a href="/sla-performance" class="page-tab">SLA performance</a>
       <a href="/demand-trends" class="page-tab">Demand trends</a>
+      <!-- Analytics tab is highlighted as the active view -->
       <a href="/analytics" class="page-tab page-tab-active">Analytics</a>
     </div>
 
-    <!-- Hero -->
+    <!-- Hero section that explains what this page is used for -->
     <div class="hero-card">
       <div class="hero-main-title">Analytics</div>
       <div class="hero-subtitle">
@@ -58,7 +64,7 @@
       </div>
     </div>
 
-    <!-- Row 1 -->
+    <!-- Row 1: neighborhood and department volume -->
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-header">
@@ -68,8 +74,10 @@
           </div>
         </div>
         {% if neigh_labels|length == 0 %}
+          <!-- Fallback message when there is no neighborhood data -->
           <div class="chart-empty">No neighborhood data available.</div>
         {% else %}
+          <!-- Canvas element where Chart.js will render the neighborhood bar chart -->
           <canvas id="neighCasesChart"></canvas>
         {% endif %}
       </div>
@@ -82,14 +90,16 @@
           </div>
         </div>
         {% if dept_labels|length == 0 %}
+          <!-- Fallback message when there is no department data -->
           <div class="chart-empty">No department data available.</div>
         {% else %}
+          <!-- Canvas for department cases chart -->
           <canvas id="deptCasesChart"></canvas>
         {% endif %}
       </div>
     </div>
 
-    <!-- Row 2 -->
+    <!-- Row 2: top reasons and SLA performance -->
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-header">
@@ -99,8 +109,10 @@
           </div>
         </div>
         {% if reason_labels|length == 0 %}
+          <!-- Fallback message when there is no reason/topic data -->
           <div class="chart-empty">No topic data available.</div>
         {% else %}
+          <!-- Canvas for top request reasons chart -->
           <canvas id="reasonCasesChart"></canvas>
         {% endif %}
       </div>
@@ -113,14 +125,16 @@
           </div>
         </div>
         {% if sla_dept_labels|length == 0 %}
+          <!-- Fallback message when SLA data is not available -->
           <div class="chart-empty">No SLA data available.</div>
         {% else %}
+          <!-- Canvas for SLA compliance chart -->
           <canvas id="slaDeptChart"></canvas>
         {% endif %}
       </div>
     </div>
 
-    <!-- Row 3 -->
+    <!-- Row 3: source channel volume and resolution times -->
     <div class="charts-grid">
       <div class="chart-card">
         <div class="chart-header">
@@ -130,8 +144,10 @@
           </div>
         </div>
         {% if src_labels|length == 0 %}
+          <!-- Fallback message when there is no source/channel data -->
           <div class="chart-empty">No report source data available.</div>
         {% else %}
+          <!-- Canvas for doughnut chart showing volume by source -->
           <canvas id="sourceVolumeChart"></canvas>
         {% endif %}
       </div>
@@ -144,15 +160,17 @@
           </div>
         </div>
         {% if src_art_labels|length == 0 %}
+          <!-- Fallback message when resolution-time data is missing -->
           <div class="chart-empty">No resolution-time data available.</div>
         {% else %}
+          <!-- Canvas for bar chart of average resolution time by source -->
           <canvas id="sourceArtChart"></canvas>
         {% endif %}
       </div>
     </div>
   </div>
 
-  <!-- Inline data blob -->
+  <!-- Inline JSON data that the JS file will parse to build the charts -->
   <script id="analytics-data" type="application/json">
     {{
       {
@@ -172,7 +190,7 @@
     }}
   </script>
 
-  <!-- Page JS -->
+  <!-- Page-specific JavaScript that reads the JSON above and renders all charts -->
   <script src="{{ url_for('static', filename='js/analytics.js') }}" defer></script>
 </body>
 </html>

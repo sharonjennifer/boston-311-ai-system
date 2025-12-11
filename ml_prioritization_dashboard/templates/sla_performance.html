@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <title>Boston 311 SLA Performance & Compliance</title>
 
-  <!-- Modern font -->
+  <!-- Load the Inter font so this page matches the other dashboards -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Leaflet for map -->
+  <!-- Leaflet styles for the SLA map -->
   <link
     rel="stylesheet"
     href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -17,12 +17,12 @@
     crossorigin=""
   />
 
-  <!-- Page CSS -->
+  <!-- Page-specific CSS for the SLA view -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/sla_performance.css') }}">
 </head>
 <body>
 
-  <!-- Top nav -->
+  <!-- Shared top nav with city branding and environment info -->
   <div class="top-nav">
     <div class="top-nav-left">
       <div class="city-badge">City of Boston</div>
@@ -43,7 +43,7 @@
   </div>
 
   <div class="page-shell">
-    <!-- Tabs -->
+    <!-- Tabs that let staff jump between Command Center, SLA, Demand Trends, etc. -->
     <div class="page-tabs">
       <a href="/" class="page-tab">Command Center</a>
       <a href="/work-queues" class="page-tab">Work Queues</a>
@@ -53,7 +53,7 @@
       <a href="/analytics" class="page-tab">Analytics</a>
     </div>
 
-    <!-- Hero -->
+    <!-- Hero card explaining what this SLA dashboard is meant for -->
     <div class="hero-card">
       <div>
         <div class="hero-main-title">SLA Performance &amp; Compliance</div>
@@ -67,11 +67,13 @@
         </div>
       </div>
       <div class="hero-side">
-        <div>Good for weekly reviews, stand-ups, and performance check-ins with department leads.</div>
+        <div>
+          Good for weekly reviews, stand-ups, and performance check-ins with department leads.
+        </div>
       </div>
     </div>
 
-    <!-- KPIs -->
+    <!-- Top-level KPIs summarizing SLA performance across the city -->
     <div class="kpi-strip">
       <div class="kpi-card">
         <div class="kpi-label">Overall SLA compliance</div>
@@ -99,9 +101,9 @@
       </div>
     </div>
 
-    <!-- Charts: SLA gauge + dept bar -->
+    <!-- First row: overall SLA gauge and compliance by department -->
     <div class="charts-row">
-      <!-- SLA Gauge -->
+      <!-- Half-gauge that shows overall SLA compliance % -->
       <div class="panel">
         <div class="panel-header-row">
           <div>
@@ -116,7 +118,7 @@
         </div>
       </div>
 
-      <!-- Compliance by department -->
+      <!-- Horizontal bar chart comparing SLA compliance by department -->
       <div class="panel">
         <div class="panel-header-row">
           <div>
@@ -132,9 +134,9 @@
       </div>
     </div>
 
-    <!-- Average Resolution Time + Map -->
+    <!-- Second row: average resolution time per service + overdue map -->
     <div class="charts-row">
-      <!-- Avg resolution time -->
+      <!-- Bar chart of average resolution time per service in hours -->
       <div class="panel">
         <div class="panel-header-row">
           <div>
@@ -149,7 +151,7 @@
         </div>
       </div>
 
-      <!-- Overdue map -->
+      <!-- Leaflet map showing the location of overdue open cases -->
       <div class="panel">
         <div class="panel-header-row">
           <div>
@@ -165,7 +167,7 @@
       </div>
     </div>
 
-    <!-- Overdue drilldown -->
+    <!-- Drilldown table: list of overdue cases with a neighborhood filter -->
     <div class="panel">
       <div class="panel-header-row">
         <div>
@@ -176,6 +178,7 @@
         </div>
       </div>
 
+      <!-- Simple dropdown that will filter both the table and the map via JS -->
       <div class="filter-row">
         <label for="overdueNeighborhoodFilter">Neighborhood</label>
         <select id="overdueNeighborhoodFilter">
@@ -189,8 +192,10 @@
       </div>
 
       {% if overdue_cases|length == 0 %}
+        <!-- Friendly message when there are no overdue cases at all -->
         <p class="empty-text">No overdue open cases at the moment. 🎉</p>
       {% else %}
+        <!-- Scrollable table listing each overdue case and its neighborhood/department/status -->
         <div class="overdue-table-wrapper">
           <table id="overdueTable">
             <thead>
@@ -217,7 +222,7 @@
     </div>
   </div>
 
-  <!-- Vendor JS: Chart.js + Leaflet -->
+  <!-- Vendor libraries: Chart.js for charts and Leaflet for the overdue map -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
@@ -225,7 +230,7 @@
     crossorigin=""
   ></script>
 
-  <!-- Inline data blob for JS (no logic here) -->
+  <!-- Inline JSON block that passes SLA metrics and map data into the JS file -->
   <script id="sla-data" type="application/json">
     {{
       {
@@ -239,7 +244,7 @@
     }}
   </script>
 
-  <!-- Page JS -->
+  <!-- Page-specific JS that renders charts and hooks up the map + filter -->
   <script src="{{ url_for('static', filename='js/sla_performance.js') }}" defer></script>
 </body>
 </html>

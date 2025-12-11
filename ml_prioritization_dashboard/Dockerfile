@@ -23,10 +23,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy app code + templates + static
 COPY . .
-
-# (Safety) Ensure model is present in the container where the app expects it
-# If your model file is already under ./models/ this COPY is effectively a no-op,
-# but it guarantees /app/models/priority_model.pkl exists.
 COPY models/priority_model.pkl /app/models/priority_model.pkl
 
 # Gunicorn entrypoint for Cloud Run

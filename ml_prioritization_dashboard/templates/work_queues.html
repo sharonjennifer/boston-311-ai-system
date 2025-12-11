@@ -4,16 +4,17 @@
   <meta charset="UTF-8" />
   <title>Boston 311 Work Queues & Assignment</title>
 
-  <!-- Modern font -->
+  <!-- Inter font so this page visually matches the rest of the dashboard -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
-  <!-- Page-specific CSS -->
+  <!-- Page-specific CSS for the Work Queues view -->
   <link rel="stylesheet" href="{{ url_for('static', filename='css/work_queues.css') }}">
 </head>
 <body>
 
+  <!-- Shared top navigation bar -->
   <div class="top-nav">
     <div class="top-nav-left">
       <div class="city-badge">City of Boston</div>
@@ -34,7 +35,7 @@
   </div>
 
   <div class="page-shell">
-    <!-- Tabs -->
+    <!-- Tab navigation (Command Center, Work Queues, Neighborhoods, etc.) -->
     <div class="page-tabs">
       <a href="/" class="page-tab">Command Center</a>
       <a href="/work-queues" class="page-tab page-tab-active">Work Queues</a>
@@ -44,6 +45,7 @@
       <a href="/analytics" class="page-tab">Analytics</a>
     </div>
 
+    <!-- Hero block explaining how to use this page -->
     <div class="hero-card">
       <div class="hero-title">Work Queues &amp; Assignment</div>
       <div class="hero-subtitle">
@@ -56,12 +58,14 @@
       </div>
     </div>
 
-    <!-- Department selector -->
+    <!-- Department selector block -->
     <div class="filters-card">
       <div class="filters-header">
         <div class="filters-title">Department queue</div>
         <div class="filters-hint">Choose a department to see its work queue.</div>
       </div>
+
+      <!-- Simple GET form that reloads the page with ?department=... -->
       <form method="get" action="/work-queues" class="filters-row">
         <label for="department">Department</label>
         <select id="department" name="department">
@@ -74,6 +78,7 @@
       </form>
     </div>
 
+    {# If no department is selected, show a gentle hint #}
     {% if not sel_dept %}
       <div class="dept-header-card">
         <div class="dept-name">No department selected</div>
@@ -82,6 +87,7 @@
         </div>
       </div>
     {% else %}
+      <!-- Department summary header (name + counts) -->
       <div class="dept-header-card">
         <div class="dept-name">{{ sel_dept }}</div>
         {% if stats %}
@@ -97,6 +103,7 @@
         {% endif %}
       </div>
 
+      {# If there are no open cases in the chosen department #}
       {% if work_queue|length == 0 %}
         <div class="queue-list-card">
           <div class="empty-text queue-empty-inner">
@@ -104,11 +111,14 @@
           </div>
         </div>
       {% else %}
+        <!-- List of up to 100 open cases, sorted by ML priority score -->
         <div class="queue-list-card">
           {% for row in work_queue %}
             <div class="queue-item">
+              <!-- Left column: case info and action buttons -->
               <div class="queue-main">
                 <div class="queue-title">
+                  <!-- Prototype anchor: we keep it on-page (#case-...) for now -->
                   <a href="#case-{{ row.case_enquiry_id }}">Case {{ row.case_enquiry_id }}</a>
                 </div>
                 <div class="queue-subline">
@@ -116,6 +126,7 @@
                   {% if row.reason %} • {{ row.reason }}{% endif %}
                 </div>
 
+                <!-- Tags: segment, status, priority bucket -->
                 <div class="queue-tags">
                   {% if row.segment %}
                     <span class="tag tag-segment">{{ row.segment }}</span>
@@ -133,13 +144,21 @@
                   {% endif %}
                 </div>
 
+                <!-- Action buttons (currently prototype with JS alert) -->
                 <div class="queue-buttons">
-                  <button type="button" class="queue-btn queue-btn-primary queue-btn-action">Assign to crew…</button>
-                  <button type="button" class="queue-btn queue-btn-action">Mark in-progress</button>
-                  <button type="button" class="queue-btn queue-btn-action">Add note</button>
+                  <button type="button" class="queue-btn queue-btn-primary queue-btn-action">
+                    Assign to crew…
+                  </button>
+                  <button type="button" class="queue-btn queue-btn-action">
+                    Mark in-progress
+                  </button>
+                  <button type="button" class="queue-btn queue-btn-action">
+                    Add note
+                  </button>
                 </div>
               </div>
 
+              <!-- Right column: numeric ML priority score -->
               <div class="queue-side">
                 {% if row.priority_score is defined %}
                   <div class="queue-score">{{ "%.3f"|format(row.priority_score) }}</div>
@@ -151,6 +170,7 @@
       {% endif %}
     {% endif %}
 
+    {# Small note: we only show the top N cases to keep the page responsive #}
     {% if sel_dept and work_queue|length > 0 %}
       <div class="empty-text queue-footnote">
         Showing up to the top 100 cases by priority for {{ sel_dept }}.
@@ -158,7 +178,7 @@
     {% endif %}
   </div>
 
-  <!-- JS: dark mode reuse + button actions -->
+  <!-- Page JS: applies dark mode and hooks up prototype button actions -->
   <script src="{{ url_for('static', filename='js/work_queues.js') }}" defer></script>
 </body>
 </html>

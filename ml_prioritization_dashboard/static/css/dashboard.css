@@ -1,31 +1,34 @@
 :root {
-  /* Layout + background */
+  /* Base layout and background colors for the light theme */
   --bg-shell: #f5f7fb;
   --bg-main: #f5f7fb;
   --bg-card: #ffffff;
   --bg-card-soft: #f8fafc;
   --border-subtle: #e2e8f0;
 
-  /* Brand-ish palette (navy + red like your refs) */
+  /* Navy-ish header colors to match city branding */
   --nav-bg: #021b3b;
   --nav-bg-alt: #0b2648;
   --nav-border: #0f2f5f;
 
+  /* Accent colors used for buttons and status chips */
   --accent-blue: #2563eb;
   --accent-blue-soft: #dbeafe;
   --accent-red: #ff4c4c;
   --accent-red-soft: #ffe3e3;
   --accent-orange: #f97316;
 
+  /* Text colors */
   --text-main: #0f172a;
   --text-muted: #6b7280;
 
-  /* Priority colors */
+  /* Priority colors for high/medium/low cases */
   --prio-high: #b91c1c;
   --prio-med: #f97316;
   --prio-low: #16a34a;
 }
 
+/* Override color variables when dark mode is toggled on */
 body.dark-mode {
   --bg-shell: #020617;
   --bg-main: #020617;
@@ -36,10 +39,12 @@ body.dark-mode {
   --text-muted: #9ca3af;
 }
 
+/* Use border-box so padding and border are included in element width/height */
 * {
   box-sizing: border-box;
 }
 
+/* Global body styling for font, margins, and background */
 body {
   margin: 0;
   padding: 0;
@@ -48,8 +53,7 @@ body {
   color: var(--text-main);
 }
 
-/* ----------------- TOP NAV (CITY BAR) ----------------- */
-
+/* Top navigation bar at the very top of the app */
 .top-nav {
   background: linear-gradient(90deg, var(--nav-bg), var(--nav-bg-alt));
   border-bottom: 1px solid var(--nav-border);
@@ -60,12 +64,14 @@ body {
   justify-content: space-between;
 }
 
+/* Left-hand side of the top nav: city badge + title */
 .top-nav-left {
   display: flex;
   align-items: center;
   gap: 12px;
 }
 
+/* Small “City of Boston” label */
 .city-badge {
   border-radius: 4px;
   border: 1px solid rgba(255,255,255,0.6);
@@ -76,6 +82,7 @@ body {
   font-weight: 600;
 }
 
+/* Container for main and subtitle text in the nav */
 .top-nav-title {
   display: flex;
   flex-direction: column;
@@ -92,6 +99,7 @@ body {
   opacity: 0.85;
 }
 
+/* Right-hand side of top nav: environment + online status */
 .top-nav-right {
   display: flex;
   align-items: center;
@@ -99,6 +107,7 @@ body {
   font-size: 12px;
 }
 
+/* Green pill that shows system is online */
 .system-status-pill {
   display: inline-flex;
   align-items: center;
@@ -111,6 +120,7 @@ body {
   font-weight: 500;
 }
 
+/* Small glowing dot inside the status pill */
 .status-dot {
   width: 7px;
   height: 7px;
@@ -119,6 +129,7 @@ body {
   box-shadow: 0 0 0 3px rgba(34,197,94,0.35);
 }
 
+/* Environment pill that shows “Internal / Pilot” */
 .env-pill {
   border-radius: 999px;
   padding: 3px 10px;
@@ -127,19 +138,20 @@ body {
   background: rgba(15,23,42,0.4);
 }
 
-/* ----------------- PAGE SHELL ----------------- */
-
+/* Wrapper that gives padding around all the main content */
 .page-shell {
   padding: 20px 32px 40px;
 }
 
+/* Slightly shrink horizontal padding on tablets/phones */
 @media (max-width: 768px) {
-  .top-nav, .page-shell {
+  .top-nav,
+  .page-shell {
     padding-inline: 16px;
   }
 }
 
-/* Tabs between Command Center / Work Queues */
+/* Tab bar used to switch between dashboard pages */
 .page-tabs {
   margin-bottom: 10px;
   display: inline-flex;
@@ -149,6 +161,7 @@ body {
   gap: 2px;
 }
 
+/* Each individual tab link */
 .page-tab {
   padding: 5px 12px;
   font-size: 11px;
@@ -158,11 +171,13 @@ body {
   font-weight: 500;
 }
 
+/* Style for the currently active tab */
 .page-tab-active {
   background: #ffffff;
   color: #111827;
 }
 
+/* Hero container at the top of the Command Center view */
 .hero-card {
   background: var(--bg-card);
   border-radius: 16px;
@@ -177,6 +192,7 @@ body {
   margin-bottom: 18px;
 }
 
+/* Left side of the hero: explanation text and tags */
 .hero-main {
   max-width: 680px;
 }
@@ -193,6 +209,7 @@ body {
   max-width: 560px;
 }
 
+/* Row of hero “meta” pills such as model name and bias mitigation info */
 .hero-meta-row {
   margin-top: 10px;
   display: flex;
@@ -213,6 +230,7 @@ body {
   border: 1px solid #bfdbfe;
 }
 
+/* Small dot on hero pills (used to highlight topics) */
 .hero-meta-dot {
   width: 6px;
   height: 6px;
@@ -220,6 +238,7 @@ body {
   background: #1d4ed8;
 }
 
+/* Right side of hero: data freshness + quick action buttons */
 .hero-side {
   min-width: 220px;
   display: flex;
@@ -235,6 +254,7 @@ body {
   color: var(--text-muted);
 }
 
+/* Small pill that shows when model training last ran */
 .hero-last-updated {
   padding: 5px 10px;
   border-radius: 999px;
@@ -246,8 +266,7 @@ body {
   gap: 6px;
 }
 
-/* ----------------- FILTERS BAR ----------------- */
-
+/* Filter card where users pick neighborhood, reason, department, etc. */
 .filters-card {
   background: var(--bg-card);
   border-radius: 12px;
@@ -257,6 +276,7 @@ body {
   box-shadow: 0 6px 18px rgba(15,23,42,0.05);
 }
 
+/* Header row of the filters card */
 .filters-header {
   display: flex;
   justify-content: space-between;
@@ -275,6 +295,7 @@ body {
   color: var(--text-muted);
 }
 
+/* Layout for the filter form controls on one row */
 .filters-form-row {
   display: flex;
   flex-wrap: wrap;
@@ -283,12 +304,14 @@ body {
   margin-top: 4px;
 }
 
+/* Labels for inputs and dropdowns */
 label {
   font-size: 12px;
   font-weight: 600;
   margin-right: 3px;
 }
 
+/* Shared styling for select and text input filter controls */
 select,
 input[type="text"] {
   padding: 5px 8px;
@@ -299,6 +322,7 @@ input[type="text"] {
   min-width: 140px;
 }
 
+/* Focus style to make active input more visible */
 select:focus,
 input[type="text"]:focus {
   outline: none;
@@ -307,6 +331,7 @@ input[type="text"]:focus {
   background: #ffffff;
 }
 
+/* Shared base styles for buttons on this page */
 .btn,
 .btn-secondary,
 .btn-outline {
@@ -322,24 +347,28 @@ input[type="text"]:focus {
   white-space: nowrap;
 }
 
+/* Primary “Apply filters” button */
 .btn {
   background: linear-gradient(135deg, var(--accent-blue), #3b82f6);
   color: white;
   box-shadow: 0 4px 12px rgba(37,99,235,0.36);
 }
 
+/* Outlined button used for “What’s Near Me?” */
 .btn-outline {
   background: #ffffff;
   color: var(--accent-blue);
   border: 1px solid rgba(37,99,235,0.7);
 }
 
+/* Neutral secondary buttons (dark mode toggle, replay tour) */
 .btn-secondary {
   background: var(--bg-card-soft);
   color: var(--text-main);
   border: 1px solid var(--border-subtle);
 }
 
+/* Slightly faded look for disabled buttons */
 .btn:disabled,
 .btn-outline:disabled {
   opacity: 0.7;
@@ -347,14 +376,14 @@ input[type="text"]:focus {
   box-shadow: none;
 }
 
+/* Text used to show geolocation errors for the near-me feature */
 .nearme-msg {
   font-size: 11px;
   color: var(--accent-red);
   min-height: 14px;
 }
 
-/* ----------------- KPI STRIP ----------------- */
-
+/* KPI row with cards that show counts and percentages */
 .kpi-strip {
   display: flex;
   flex-wrap: wrap;
@@ -362,6 +391,7 @@ input[type="text"]:focus {
   margin-bottom: 16px;
 }
 
+/* Single KPI card layout */
 .kpi-card {
   flex: 1;
   min-width: 170px;
@@ -372,6 +402,7 @@ input[type="text"]:focus {
   box-shadow: 0 6px 18px rgba(15,23,42,0.05);
 }
 
+/* Label at the top of each KPI card */
 .kpi-label {
   font-size: 11px;
   text-transform: uppercase;
@@ -379,6 +410,7 @@ input[type="text"]:focus {
   color: var(--text-muted);
 }
 
+/* Number line within the KPI card */
 .kpi-value-row {
   display: flex;
   align-items: baseline;
@@ -391,6 +423,7 @@ input[type="text"]:focus {
   font-weight: 700;
 }
 
+/* Small badge on the “critical” KPI card */
 .kpi-pill {
   font-size: 11px;
   padding: 2px 8px;
@@ -400,16 +433,17 @@ input[type="text"]:focus {
   font-weight: 500;
 }
 
+/* Make the critical count stand out in red */
 .kpi-critical .kpi-value {
   color: var(--accent-red);
 }
 
+/* Make the critical share percentage stand out in orange */
 .kpi-share .kpi-value {
   color: var(--accent-orange);
 }
 
-/* ----------------- MAP PANEL ----------------- */
-
+/* Generic panel style used for map and case list containers */
 .panel {
   background: var(--bg-card);
   border-radius: 12px;
@@ -418,6 +452,7 @@ input[type="text"]:focus {
   padding: 12px 14px;
 }
 
+/* Header row for any panel (title + subtitle) */
 .panel-header {
   display: flex;
   justify-content: space-between;
@@ -435,6 +470,7 @@ input[type="text"]:focus {
   color: var(--text-muted);
 }
 
+/* Leaflet map container styling */
 #map {
   height: 430px;
   border-radius: 10px;
@@ -442,12 +478,12 @@ input[type="text"]:focus {
   background: #e5e7eb;
 }
 
-/* ----------------- CASE LIST ----------------- */
-
+/* Extra margin on the case list panel so it separates from the map */
 .cases-panel {
   margin-top: 18px;
 }
 
+/* Header for the case list section */
 .section-heading-row {
   display: flex;
   justify-content: space-between;
@@ -465,12 +501,14 @@ input[type="text"]:focus {
   color: var(--text-muted);
 }
 
+/* Vertical stack for all case cards */
 .case-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
+/* Single case card layout */
 .case-card {
   display: flex;
   align-items: stretch;
@@ -483,6 +521,7 @@ input[type="text"]:focus {
   font-size: 12px;
 }
 
+/* Colored left border based on priority bucket */
 .case-card.priority-high {
   border-left: 4px solid var(--prio-high);
 }
@@ -495,6 +534,7 @@ input[type="text"]:focus {
   border-left: 4px solid var(--prio-low);
 }
 
+/* Rank number (#1, #2, etc.) at the far left */
 .case-rank {
   min-width: 36px;
   font-size: 18px;
@@ -506,6 +546,7 @@ input[type="text"]:focus {
   justify-content: center;
 }
 
+/* Main case content, including ID, neighborhood, badges, and extra context */
 .case-main {
   flex: 1;
   display: flex;
@@ -513,6 +554,7 @@ input[type="text"]:focus {
   gap: 4px;
 }
 
+/* First line inside a case card with case ID and neighborhood */
 .case-title-line {
   font-size: 13px;
   font-weight: 600;
@@ -522,21 +564,25 @@ input[type="text"]:focus {
   align-items: baseline;
 }
 
+/* Case ID styled in the accent color so it stands out */
 .case-id {
   color: var(--accent-blue);
 }
 
+/* Neighborhood text directly after the case ID */
 .case-neighborhood {
   color: #4b5563;
   font-weight: 500;
 }
 
+/* Badge row with reason, department, and segment labels */
 .case-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
+/* Generic badge style shared across all badge types */
 .badge {
   padding: 2px 8px;
   border-radius: 999px;
@@ -544,24 +590,28 @@ input[type="text"]:focus {
   border: 1px solid transparent;
 }
 
+/* Reason badge styling */
 .badge-reason {
   background: #fef3c7;
   border-color: #fde68a;
   color: #92400e;
 }
 
+/* Department badge styling */
 .badge-dept {
   background: #e0f2fe;
   border-color: #bae6fd;
   color: #075985;
 }
 
+/* Segment badge styling */
 .badge-segment {
   background: var(--accent-red-soft);
   border-color: #fecaca;
   color: #b91c1c;
 }
 
+/* Extra context row under the badges line */
 .case-sub {
   display: flex;
   flex-wrap: wrap;
@@ -571,6 +621,7 @@ input[type="text"]:focus {
   font-size: 11px;
 }
 
+/* Right-hand side of the case card that shows numeric score and bar */
 .case-score {
   min-width: 120px;
   display: flex;
@@ -580,6 +631,7 @@ input[type="text"]:focus {
   text-align: right;
 }
 
+/* Label above the numeric ML score */
 .case-score-label {
   font-size: 10px;
   text-transform: uppercase;
@@ -587,12 +639,14 @@ input[type="text"]:focus {
   color: var(--text-muted);
 }
 
+/* The numeric priority score itself */
 .case-score-value {
   font-size: 18px;
   font-weight: 700;
   color: var(--accent-red);
 }
 
+/* Background for the progress-style bar that visualizes the score */
 .case-score-bar {
   position: relative;
   width: 100%;
@@ -602,6 +656,7 @@ input[type="text"]:focus {
   overflow: hidden;
 }
 
+/* Filled part of the score bar; width is controlled via inline style */
 .case-score-bar-fill {
   position: absolute;
   inset: 0;
@@ -609,14 +664,14 @@ input[type="text"]:focus {
   background: linear-gradient(90deg, var(--accent-red), #fb923c);
 }
 
+/* Text shown when there are zero cases for the current filter set */
 .no-cases-text {
   font-size: 12px;
   color: var(--text-muted);
   padding: 8px 0;
 }
 
-/* ----------------- TOUR OVERLAY ----------------- */
-
+/* Dark overlay used to dim the page during the guided tour */
 .tour-overlay {
   position: fixed;
   inset: 0;
@@ -625,12 +680,14 @@ input[type="text"]:focus {
   display: none;
 }
 
+/* Class added to elements that should be highlighted in the tour */
 .tour-highlight {
   position: relative;
   z-index: 9999;
   box-shadow: 0 0 0 3px var(--accent-blue), 0 0 18px rgba(15,23,42,0.8);
 }
 
+/* Tooltip box that shows title + explanation for each tour step */
 .tour-tooltip {
   position: fixed;
   max-width: 320px;
@@ -652,12 +709,14 @@ input[type="text"]:focus {
   margin-bottom: 8px;
 }
 
+/* Row of action buttons (Next, Back, Skip) inside the tooltip */
 .tour-tooltip-actions {
   display: flex;
   justify-content: flex-end;
   gap: 6px;
 }
 
+/* Base style for the tour buttons */
 .tour-btn {
   padding: 4px 10px;
   border-radius: 999px;
@@ -666,11 +725,13 @@ input[type="text"]:focus {
   font-size: 11px;
 }
 
+/* Primary tour button, e.g., Next / Done */
 .tour-btn-primary {
   background: var(--accent-blue);
   color: #ffffff;
 }
 
+/* Secondary tour button, used for Back / Skip */
 .tour-btn-secondary {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
