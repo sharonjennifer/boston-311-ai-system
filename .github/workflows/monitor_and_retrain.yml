@@ -24,23 +24,28 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-          
+
       - name: Install deps just for monitoring/retraining
         working-directory: ml_prioritization_dashboard
         run: |
           python -m venv .venv
           source .venv/bin/activate
-      
-          # Evidently-compatible stack
-          pip install "numpy<2.0.0" "evidently==0.4.0"
-      
-          # Other libs used in monitor_model.py / retrain_model.py
+
+          # 1) Evidently-compatible stack (pydantic v1 + numpy < 2)
+          pip install "numpy<2.0.0" "pydantic<2.0.0" "evidently==0.4.0"
+
+          # 2) Other libs used in monitor_model.py / retrain_model.py
           pip install \
             pandas scikit-learn pyarrow \
             google-cloud-bigquery google-cloud-storage \
             db-dtypes pandas-gbq
-          # For run real retraining (not just --dry-run):
-          pip install xgboost mlflow fairlearn
+
+          # 3) For real retraining
+          pip install xgboost
+
+          # NOTE: We intentionally DO NOT install mlflow/fairlearn here
+          # to avoid pulling in pydantic v2, which breaks Evidently 0.4.0.
+          # They are still available in main requirements.txt locally.
 
       - name: Run model monitoring
         id: monitor
