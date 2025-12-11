@@ -25,15 +25,22 @@ jobs:
         with:
           python-version: "3.11"
           
-      - name: Install dependencies
+      - name: Install deps just for monitoring/retraining
+        working-directory: ml_prioritization_dashboard
         run: |
-          cd ml_prioritization_dashboard
           python -m venv .venv
           source .venv/bin/activate
-          # Base deps for dashboard & model
-          pip install -r requirements.txt
-          # Extra deps just for monitoring
+      
+          # Evidently-compatible stack
           pip install "numpy<2.0.0" "evidently==0.4.0"
+      
+          # Other libs used in monitor_model.py / retrain_model.py
+          pip install \
+            pandas scikit-learn pyarrow \
+            google-cloud-bigquery google-cloud-storage \
+            db-dtypes pandas-gbq
+          # For run real retraining (not just --dry-run):
+          pip install xgboost mlflow fairlearn
 
       - name: Run model monitoring
         id: monitor
