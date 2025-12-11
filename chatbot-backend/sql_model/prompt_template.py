@@ -45,15 +45,11 @@ Generate a BigQuery SQL query to answer [QUESTION]{question}[/QUESTION]
 ### Answer
 """
 
-
-
 def build_prompt(question, keywords):
     hints = ", ".join(keywords) if keywords else "None"
-
     prompt = SQL_PROMPT_TEMPLATE.format(
         question=question,
         schema=DEFAULT_SCHEMA,
         hints=hints,
     )
-
     return prompt

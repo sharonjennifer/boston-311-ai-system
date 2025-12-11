@@ -39,7 +39,6 @@ Categories to extract:
 - case_status: "Open" or "Closed" only.
 - source: How the request was made (e.g., "App", "Phone", "Citizen Connect").
 - reason: Broad categories (e.g., "Sanitation", "Street Lights", "Trees").
-- type: Specific complaint types (e.g., "Missed Trash", "Pothole", "Needle Pickup").
 - on_time: Whether the cases were resolved "ONTIME" or "OVERDUE".
 
 Rules:
@@ -47,6 +46,7 @@ Rules:
 2. Do NOT try to guess valid database values. Extract the exact words the user used (e.g., extract "rats" not "Rodent Activity").
 3. Output valid JSON only.
 """
+
 
 
 
@@ -64,9 +64,9 @@ class QueryParser:
             logger.critical(f"Failed to initialize Vertex AI: {e}")
             raise
 
-    def parse(self, user_text: str) -> dict:
+    def parse(self, user_text):
         logger.info(f"Parsing query: '{user_text}'")
-        
+ 
         try:
             response = self.model.generate_content(
                 user_text,
@@ -104,6 +104,10 @@ class QueryParser:
         except Exception as e:
             logger.error(f"Error during parsing: {e}")
             return {}
+
+def parse_query(user_text):
+    parser = get_parser()
+    return parser.parse(user_text)
 
 parser_instance = None
 

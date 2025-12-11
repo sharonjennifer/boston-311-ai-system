@@ -1,0 +1,38 @@
+[
+  {
+    "id": "dept_graffiti",
+    "question": "Who handles graffiti removal in Boston?",
+    "answer": "The Public Works Department handles graffiti removal in Boston. You can report graffiti by calling 311, visiting boston.gov/311, or using the BOS:311 mobile app.",
+    "keywords": ["graffiti", "removal", "clean", "paint", "vandalism", "department", "responsible"]
+  },
+  {
+    "id": "dept_potholes",
+    "question": "Who handles pothole repairs?",
+    "answer": "The Public Works Department is responsible for pothole repairs. You can report potholes by calling 311 or using the BOS:311 app. Include the exact location for faster service.",
+    "keywords": ["pothole", "road", "street", "repair", "hole", "pavement", "department"]
+  },
+  {
+    "id": "dept_trash",
+    "question": "Who handles missed trash or recycling pickup?",
+    "answer": "The Sanitation Department handles trash and recycling collection. If you missed a pickup, call 311 with your address and collection day. They'll schedule a special pickup if needed.",
+    "keywords": ["trash", "recycling", "garbage", "pickup", "collection", "missed", "sanitation"]
+  },
+  {
+    "id": "dept_streetlights",
+    "question": "Who fixes broken streetlights?",
+    "answer": "The Public Works Department maintains streetlights. Report outages by calling 311 with the nearest address or pole number. Emergency lighting issues are prioritized.",
+    "keywords": ["streetlight", "light", "lamp", "broken", "out", "dark", "pole"]
+  },
+  {
+    "id": "how_report_general",
+    "question": "How do I report a 311 issue?",
+    "answer": "You can report issues four ways: (1) Call 311 or 617-635-4500, (2) Visit boston.gov/311 online, (3) Download the BOS:311 mobile app (iOS/Android), or (4) Visit City Hall in person.",
+    "keywords": ["report", "submit", "file", "complaint", "how", "contact", "call"]
+  },
+  {
+    "id": "how_track_case",
+    "question": "How do I track my 311 case?",
+    "answer": "You can track your case online at boston.gov/311 using your case number. You'll receive a case number when you submit a request. You can also call 311 with your case number for status updates.",
+    "keywords": ["track", "status", "case", "number", "follow", "update", "check"]
+  }
+]

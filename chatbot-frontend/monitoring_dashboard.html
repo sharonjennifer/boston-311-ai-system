@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Boston 311 Chatbot Monitoring</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --bg-main: #020617;
+      --bg-card: #0b1120;
+      --bg-card-alt: #020617;
+      --border: #1f2937;
+      --text-main: #e5e7eb;
+      --text-muted: #9ca3af;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --danger: #f97373;
+      --danger-soft: rgba(248, 113, 113, 0.15);
+      --ok: #4ade80;
+      --warning: #fbbf24;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font);
+      background: radial-gradient(circle at top, #111827 0, #020617 45%, #000 100%);
+      color: var(--text-main);
+    }
+
+    .page {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 16px 32px;
+    }
+
+    header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 1.6rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    header h1 span {
+      font-size: 1.7rem;
+    }
+
+    header .subtitle {
+      margin: 0;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+    }
+
+    .status-chip {
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px solid rgba(148, 163, 184, 0.4);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--ok);
+    }
+
+    .summary-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+
+    .card {
+      background: linear-gradient(135deg, rgba(15,23,42,0.95), rgba(15,23,42,0.98));
+      border-radius: 14px;
+      border: 1px solid rgba(148,163,184,0.25);
+      padding: 14px 16px 16px;
+      box-shadow: 0 12px 30px rgba(15,23,42,0.8);
+    }
+
+    .summary-card h2 {
+      margin: 0 0 4px;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+    }
+
+    .summary-value {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: var(--accent);
+    }
+
+    .summary-sub {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .summary-card.error .summary-value {
+      color: var(--danger);
+    }
+
+    .grid-main {
+      display: grid;
+      grid-template-columns: 1.4fr 1.1fr;
+      gap: 14px;
+      margin-bottom: 18px;
+    }
+
+    .card h2 {
+      margin: 0 0 4px;
+      font-size: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card h2 span {
+      font-size: 1.1rem;
+    }
+
+    .card h3 {
+      margin: 0 0 10px;
+      font-size: 0.85rem;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    .small-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8rem;
+    }
+
+    th, td {
+      padding: 6px 8px;
+      border-bottom: 1px solid rgba(31,41,55,0.9);
+    }
+
+    th {
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      background: rgba(15,23,42,0.9);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    tbody tr:nth-child(even) {
+      background: rgba(15,23,42,0.4);
+    }
+
+    tbody tr:hover {
+      background: rgba(31,41,55,0.7);
+    }
+
+    .mono {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+      font-size: 0.78rem;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      font-weight: 500;
+    }
+
+    .status-ok {
+      background: rgba(22,163,74,0.15);
+      color: #bbf7d0;
+      border: 1px solid rgba(22,163,74,0.6);
+    }
+
+    .status-err {
+      background: var(--danger-soft);
+      color: #fecaca;
+      border: 1px solid rgba(248,113,113,0.7);
+    }
+
+    .badge {
+      padding: 2px 7px;
+      border-radius: 999px;
+      font-size: 0.7rem;
+      border: 1px solid rgba(148,163,184,0.4);
+      color: var(--text-muted);
+    }
+
+    .badge.warn {
+      border-color: var(--warning);
+      color: var(--warning);
+    }
+
+    .badge.crit {
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+
+    .last-error-box {
+      margin-top: 6px;
+      padding: 6px 8px;
+      border-radius: 10px;
+      background: var(--danger-soft);
+      border: 1px solid rgba(248,113,113,0.7);
+      font-size: 0.75rem;
+      color: #fecaca;
+    }
+
+    .last-error-box .mono {
+      color: #fecaca;
+    }
+
+    .section-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 8px;
+    }
+
+    .updated-at {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15,23,42,0.9);
+      border: 1px solid rgba(148,163,184,0.35);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    footer {
+      margin-top: 18px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    footer button {
+      font-size: 0.7rem;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.5);
+      background: rgba(15,23,42,0.9);
+      color: var(--text-main);
+      cursor: pointer;
+    }
+
+    footer button:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .scroll-area {
+      max-height: 260px;
+      overflow: auto;
+      border-radius: 10px;
+    }
+
+    .scroll-area::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    .scroll-area::-webkit-scrollbar-track {
+      background: rgba(15,23,42,0.9);
+      border-radius: 100px;
+    }
+    .scroll-area::-webkit-scrollbar-thumb {
+      background: rgba(55,65,81,0.9);
+      border-radius: 100px;
+    }
+
+    @media (max-width: 900px) {
+      .grid-main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 640px) {
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      footer {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <div>
+        <h1><span>📈</span> Boston 311 Chatbot Monitoring</h1>
+        <p class="subtitle">Live view of API traffic, latency, and internal pipeline step timings.</p>
+      </div>
+      <div>
+        <div class="status-chip">
+          <span class="status-dot" id="statusDot"></span>
+          <span id="statusText">Monitoring idle</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Summary cards -->
+    <section class="summary-cards">
+      <div class="card summary-card">
+        <h2>Total Requests</h2>
+        <div class="summary-value" id="totalRequests">0</div>
+        <div class="summary-sub">Since server start</div>
+      </div>
+
+      <div class="card summary-card">
+        <h2>Avg Latency</h2>
+        <div class="summary-value" id="avgLatency">0 ms</div>
+        <div class="summary-sub">All endpoints</div>
+      </div>
+
+      <div class="card summary-card">
+        <h2>p95 Latency</h2>
+        <div class="summary-value" id="p95Latency">0 ms</div>
+        <div class="summary-sub">Tail performance</div>
+      </div>
+
+      <div class="card summary-card error">
+        <h2>Error Rate</h2>
+        <div class="summary-value" id="errorRate">0%</div>
+        <div class="summary-sub">
+          <span id="errorSeverity" class="badge">Unknown</span>
+        </div>
+        <div id="lastErrorBox" class="last-error-box" style="display:none;">
+          <div><strong>Last error</strong></div>
+          <div class="mono" id="lastErrorTime"></div>
+          <div class="mono" id="lastErrorPath"></div>
+          <div class="mono" id="lastErrorMsg"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Requests & Recent -->
+    <section class="grid-main">
+      <div class="card">
+        <div class="section-title-row">
+          <div>
+            <h2><span>📡</span> Requests by Endpoint</h2>
+            <h3>Volume, latency and error rates per API path</h3>
+          </div>
+          <div class="pill">
+            <span>Sort: Most used</span>
+          </div>
+        </div>
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr>
+                <th>Path</th>
+                <th>Requests</th>
+                <th>Avg Latency (ms)</th>
+                <th>Error Rate</th>
+              </tr>
+            </thead>
+            <tbody id="pathTableBody">
+              <tr><td colspan="4">Click "Refresh now" to load metrics.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title-row">
+          <div>
+            <h2><span>🕒</span> Recent Requests</h2>
+            <h3>Last 50 HTTP calls with status and duration</h3>
+          </div>
+          <div class="pill">
+            <span id="lastUpdated">Last updated: –</span>
+          </div>
+        </div>
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr>
+                <th>Time (UTC)</th>
+                <th>Path</th>
+                <th>Status</th>
+                <th>Latency</th>
+              </tr>
+            </thead>
+            <tbody id="recentTableBody">
+              <tr><td colspan="4">Click "Refresh now" to load metrics.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Pipeline steps -->
+    <section style="margin-top: 18px;">
+      <div class="card">
+        <div class="section-title-row">
+          <div>
+            <h2><span>🧬</span> Pipeline Steps</h2>
+            <h3>Latency and error rate for each step inside <span class="mono">run_pipeline()</span></h3>
+          </div>
+          <div class="pill">
+            <span>Steps: router · parse · RAG · SQL · BigQuery · answer</span>
+          </div>
+        </div>
+        <div class="scroll-area">
+          <table>
+            <thead>
+              <tr>
+                <th>Step</th>
+                <th>Calls</th>
+                <th>Avg Latency (ms)</th>
+                <th>p95 Latency (ms)</th>
+                <th>Error Rate</th>
+              </tr>
+            </thead>
+            <tbody id="stepsTableBody">
+              <tr><td colspan="5">Click "Refresh now" to load metrics.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div>Data is collected in-memory since the current server process started. Click refresh to query the backend.</div>
+      <button id="refreshBtn">Refresh now</button>
+    </footer>
+
+    <!-- <input type="hidden" id="backendUrl" value="https://b311-chatbot-backend-763245636613.us-central1.run.app" /> -->
+    <input type="hidden" id="backendUrl" value="http://127.0.0.1:8080" />
+  </div>
+
+  <script>
+    const backendUrlInput = document.getElementById("backendUrl");
+
+    const totalRequestsEl = document.getElementById("totalRequests");
+    const avgLatencyEl = document.getElementById("avgLatency");
+    const p95LatencyEl = document.getElementById("p95Latency");
+    const errorRateEl = document.getElementById("errorRate");
+    const errorSeverityEl = document.getElementById("errorSeverity");
+    const statusDotEl = document.getElementById("statusDot");
+    const statusTextEl = document.getElementById("statusText");
+
+    const lastErrorBox = document.getElementById("lastErrorBox");
+    const lastErrorTime = document.getElementById("lastErrorTime");
+    const lastErrorPath = document.getElementById("lastErrorPath");
+    const lastErrorMsg = document.getElementById("lastErrorMsg");
+
+    const pathTableBody = document.getElementById("pathTableBody");
+    const recentTableBody = document.getElementById("recentTableBody");
+    const stepsTableBody = document.getElementById("stepsTableBody");
+
+    const lastUpdatedEl = document.getElementById("lastUpdated");
+    const refreshBtn = document.getElementById("refreshBtn");
+
+    function getMetricsUrl() {
+      const base = backendUrlInput.value.trim().replace(/\/+$/, "");
+      return base + "/monitor/metrics";
+    }
+
+    function fmtPct(x) {
+      return (x * 100).toFixed(1);
+    }
+
+    function setStatus(online) {
+      if (online) {
+        statusDotEl.style.backgroundColor = "var(--ok)";
+        statusTextEl.textContent = "Monitoring active";
+      } else {
+        statusDotEl.style.backgroundColor = "var(--danger)";
+        statusTextEl.textContent = "Backend unreachable";
+      }
+    }
+
+    function renderSummary(summary) {
+      const total = summary.total_requests || 0;
+      const avg = summary.avg_latency_ms || 0;
+      const p95 = summary.p95_latency_ms || 0;
+      const errRate = summary.error_rate || 0;
+
+      totalRequestsEl.textContent = total.toLocaleString();
+      avgLatencyEl.textContent = avg.toFixed(1) + " ms";
+      p95LatencyEl.textContent = p95.toFixed(1) + " ms";
+      errorRateEl.textContent = fmtPct(errRate) + "%";
+
+      if (errRate < 0.01) {
+        errorSeverityEl.textContent = "Healthy";
+        errorSeverityEl.className = "badge";
+      } else if (errRate < 0.05) {
+        errorSeverityEl.textContent = "Elevated";
+        errorSeverityEl.className = "badge warn";
+      } else {
+        errorSeverityEl.textContent = "Critical";
+        errorSeverityEl.className = "badge crit";
+      }
+
+      const lastErr = summary.last_error;
+      if (lastErr) {
+        lastErrorBox.style.display = "block";
+        lastErrorTime.textContent = "time: " + lastErr.time;
+        lastErrorPath.textContent = "path: " + lastErr.path + " (" + lastErr.status_code + ")";
+        lastErrorMsg.textContent = "msg: " + lastErr.message;
+      } else {
+        lastErrorBox.style.display = "none";
+      }
+    }
+
+    function renderTables(data) {
+      const byPath = data.by_path || [];
+      const recent = data.recent || [];
+      const steps = data.steps_by_name || [];
+
+      // Requests by endpoint
+      if (byPath.length === 0) {
+        pathTableBody.innerHTML = '<tr><td colspan="4">No data yet.</td></tr>';
+      } else {
+        pathTableBody.innerHTML = byPath.map(row => {
+          const errPct = fmtPct(row.error_rate || 0);
+          return `
+            <tr>
+              <td class="mono">${row.path}</td>
+              <td>${row.count}</td>
+              <td>${row.avg_latency_ms.toFixed(1)}</td>
+              <td>${errPct}%</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      // Recent requests
+      if (recent.length === 0) {
+        recentTableBody.innerHTML = '<tr><td colspan="4">No data yet.</td></tr>';
+      } else {
+        recentTableBody.innerHTML = recent.map(row => {
+          const ok = row.status_code < 400;
+          return `
+            <tr>
+              <td class="mono">${row.time}</td>
+              <td class="mono">${row.path}</td>
+              <td>
+                <span class="status-pill ${ok ? "status-ok" : "status-err"}">
+                  ${row.status_code}
+                </span>
+              </td>
+              <td>${row.latency_ms.toFixed(1)} ms</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      // Pipeline steps
+      if (steps.length === 0) {
+        stepsTableBody.innerHTML = '<tr><td colspan="5">No step timings yet.</td></tr>';
+      } else {
+        stepsTableBody.innerHTML = steps.map(s => {
+          const errPct = fmtPct(s.error_rate || 0);
+          return `
+            <tr>
+              <td class="mono">${s.step}</td>
+              <td>${s.count}</td>
+              <td>${s.avg_latency_ms.toFixed(1)}</td>
+              <td>${s.p95_latency_ms.toFixed(1)}</td>
+              <td>${errPct}%</td>
+            </tr>
+          `;
+        }).join("");
+      }
+    }
+
+    async function loadMetrics() {
+      try {
+        const resp = await fetch(getMetricsUrl(), { cache: "no-store" });
+        if (!resp.ok) {
+          throw new Error("HTTP " + resp.status);
+        }
+        const data = await resp.json();
+        setStatus(true);
+
+        const summary = data.summary || {};
+        renderSummary(summary);
+        renderTables(data);
+
+        const now = new Date();
+        lastUpdatedEl.textContent = "Last updated: " + now.toISOString();
+      } catch (err) {
+        console.error("Failed to load metrics:", err);
+        setStatus(false);
+      }
+    }
+
+    refreshBtn.addEventListener("click", loadMetrics);
+  </script>
+</body>
+</html>

@@ -41,9 +41,7 @@ endpoint_path = client.endpoint_path(
 
 logger.info("Using SQLCoder endpoint: %s", endpoint_path)
 
-
-
-def generate_sql(question: str, keywords: list) -> str:
+def generate_sql(question, keywords):
     prompt = build_prompt(question, keywords)
     logger.debug("SQL prompt sent to endpoint:\n%s", prompt)
 

@@ -28,19 +28,23 @@ def generate_answer(question, sql_query, rows):
         return "I ran the query, but there were no matching results for your question."
 
     preview_rows = rows[:5]
+    
+    # Convert to JSON-serializable format (fix Timestamp issue)
+    import json
+    serializable_rows = json.loads(json.dumps(preview_rows, default=str))
+    
     system_instructions = (
         "You are a helpful Boston 311 analytics assistant. "
         "You receive a user's natural language question and the SQL query results "
         "from a BigQuery table. "
         "Your job is to explain the answer in clear, concise language for a non-technical resident. "
-        "Use concrete numbers from the data, avoid mentioning SQL or technical details unless asked, "
-        "and keep the answer to 2–3 sentences."
+        "Use concrete numbers from the data, avoid mentioning SQL or technical details unless asked."
     )
 
     user_prompt = (
         f"User question:\n{question}\n\n"
         f"SQL query that was executed (for context):\n{sql_query}\n\n"
-        f"Top result rows as JSON:\n{json.dumps(preview_rows, indent=2)}\n\n"
+        f"Top result rows as JSON:\n{json.dumps(serializable_rows, indent=2)}\n\n"
         "Now, answer the user's question in natural language. "
         "If multiple rows are present, summarize the key trend. "
         "If only one row is present (like an hour_of_day and count), "
