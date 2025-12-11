@@ -1,0 +1,48 @@
+name: Monitor and Retrain Boston 311 Model
+
+on:
+  workflow_dispatch: {}   # Manual trigger from GitHub UI
+
+jobs:
+  monitor-and-maybe-retrain:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.B311_DASHBOARD_SA_KEY }}'
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          cd ml_prioritization_dashboard
+          python -m venv .venv
+          source .venv/bin/activate
+          pip install -r requirements.txt
+
+      - name: Run model monitoring
+        id: monitor
+        working-directory: ml_prioritization_dashboard
+        continue-on-error: true
+        run: |
+          source .venv/bin/activate
+          python monitor_model.py
+
+      - name: Retrain model if decay/drift detected
+        if: steps.monitor.outcome == 'failure'
+        working-directory: ml_prioritization_dashboard
+        run: |
+          source .venv/bin/activate
+          python retrain_model.py --dry-run
