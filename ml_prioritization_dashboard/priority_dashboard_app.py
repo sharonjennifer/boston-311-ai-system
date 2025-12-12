@@ -333,10 +333,7 @@ def apply_near_filter(
 
     return df.loc[df_near.index]
 
-
-# -----------------------------------------------------------------------------
-# Local test endpoint (keeps /api/test-vertex path for compatibility)
-# -----------------------------------------------------------------------------
+# Local test endpoint (
 
 @app.route("/api/test-vertex", methods=["POST"])
 def api_test_vertex():
@@ -883,9 +880,9 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     """
     Build demand-trend aggregates.
 
-    - Weekly history & forecast: use df_recent (typically last 365 days).
-    - Seasonality charts: use a longer multi-year window from the same
-      daily metrics table so Jan–Dec all have real volume.
+    - Weekly history: uses df_recent (typically last 365 days).
+    - Monthly forecast + seasonality: uses a longer window from the same
+      daily metrics table so we actually have enough months to avoid flat lines.
     """
     empty_result = {
         "hist_week_labels": [],
@@ -900,33 +897,30 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         "topic_totals": [],
     }
 
-    # Guard for recent data (for weekly history + forecast)
-    if df_recent is None or df_recent.empty or "date" not in df_recent.columns:
-        recent_daily = None
-    else:
+    # -------------------------------------------------------------------------
+    # 0) Prepare recent daily series for weekly history
+    # -------------------------------------------------------------------------
+    recent_daily = None
+    if df_recent is not None and not df_recent.empty and "date" in df_recent.columns and "total_cases" in df_recent.columns:
         df_r = df_recent.dropna(subset=["date"]).copy()
-        if "total_cases" not in df_r.columns:
-            recent_daily = None
-        else:
-            # Ensure datetime index for resample
-            df_r["date"] = pd.to_datetime(df_r["date"], errors="coerce")
-            df_r = df_r.dropna(subset=["date"])
+        df_r["date"] = pd.to_datetime(df_r["date"], errors="coerce")
+        df_r = df_r.dropna(subset=["date"])
+        df_r["total_cases"] = pd.to_numeric(df_r["total_cases"], errors="coerce").fillna(0)
 
-            recent_daily = (
-                df_r.groupby("date", as_index=False)["total_cases"]
-                .sum()
-                .rename(columns={"total_cases": "daily_volume"})
-            )
-            recent_daily = recent_daily.sort_values("date").set_index("date")
+        recent_daily = (
+            df_r.groupby("date", as_index=False)["total_cases"]
+            .sum()
+            .rename(columns={"total_cases": "daily_volume"})
+            .sort_values("date")
+            .set_index("date")
+        )
 
     hist_week_labels: list[str] = []
     hist_week_values: list[int] = []
     fc_week_labels: list[str] = []
     fc_week_values: list[int] = []
 
-    # -------------------------------------------------------------------------
-    # 1) Weekly historical volume (last 12 months)
-    # -------------------------------------------------------------------------
+    # 1) Weekly historical volume (last ~12 months)
     if recent_daily is not None and not recent_daily.empty:
         max_date = recent_daily.index.max()
 
@@ -938,7 +932,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         )
         weekly_counts = weekly_counts[weekly_counts > 0]
 
-        # Drop incomplete last week (so the chart doesn't end with a cliff)
+        # Drop incomplete last week
         if len(weekly_counts) >= 1:
             last_week_start = weekly_counts.index[-1]
             if max_date < last_week_start + pd.Timedelta(days=6):
@@ -950,23 +944,62 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         hist_week_labels = [ts.strftime("%Y-%m-%d") for ts in weekly_counts.index]
         hist_week_values = [int(v) for v in weekly_counts.values]
 
-        # ---------------------------------------------------------------------
-        # 2) Monthly seasonal-naive forecast (next 6 months)
-        #    Forecast each future month as "same month last year"
-        # ---------------------------------------------------------------------
+    # 2) Long window for monthly history + forecast + seasonality/topics
+    try:
+        df_long = load_sla_data(days=730)  # ~2 years
+    except Exception as e:
+        print(f"[WARN] Failed to load long-window SLA data for demand: {e}")
+        df_long = pd.DataFrame()
+
+    # Build daily_long from df_long (for monthly)
+    daily_long = None
+    if df_long is not None and not df_long.empty and "date" in df_long.columns and "total_cases" in df_long.columns:
+        df_l = df_long.dropna(subset=["date"]).copy()
+        df_l["date"] = pd.to_datetime(df_l["date"], errors="coerce")
+        df_l = df_l.dropna(subset=["date"])
+        df_l["total_cases"] = pd.to_numeric(df_l["total_cases"], errors="coerce").fillna(0).astype(float)
+
+        daily_long = (
+            df_l.groupby("date", as_index=False)["total_cases"]
+            .sum()
+            .rename(columns={"total_cases": "daily_volume"})
+            .sort_values("date")
+            .set_index("date")
+        )
+
+    # 3) Monthly forecast (next 6 months)
+    #    Prefer monthly_ts from daily_long; fallback to recent_daily.
+    monthly_ts = pd.Series(dtype=float)
+    max_period = None
+
+    if daily_long is not None and not daily_long.empty:
+        max_date_fc = daily_long.index.max()
+        max_period = max_date_fc.to_period("M")
+
+        monthly_ts = (
+            daily_long["daily_volume"]
+            .resample("MS")
+            .sum()
+            .rename("volume")
+        )
+        monthly_ts = monthly_ts[monthly_ts.index.to_period("M") <= max_period]
+    elif recent_daily is not None and not recent_daily.empty:
+        max_date_fc = recent_daily.index.max()
+        max_period = max_date_fc.to_period("M")
+
         monthly_ts = (
             recent_daily["daily_volume"]
             .resample("MS")
             .sum()
             .rename("volume")
         )
-
-        # Keep only months up to the last full month in the data
-        max_period = max_date.to_period("M")
         monthly_ts = monthly_ts[monthly_ts.index.to_period("M") <= max_period]
 
+    # Forecast logic:
+    # - If >=12 months, use "same month last year"
+    # - Else, use a simple trend delta (non-flat)
+    if len(monthly_ts) > 0:
         if len(monthly_ts) >= 12:
-            # Lookup: Period(YYYY-MM) -> volume
             month_lookup = {
                 ts.to_period("M"): int(round(float(val)))
                 for ts, val in monthly_ts.items()
@@ -977,30 +1010,26 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
 
             for p in future_periods:
                 prior_year = p - 12
-                forecast_val = month_lookup.get(prior_year, 0)
-
+                forecast_val = month_lookup.get(
+                    prior_year,
+                    int(round(float(monthly_ts.iloc[-1])))
+                )
                 fc_week_labels.append(p.strftime("%Y-%m"))
                 fc_week_values.append(int(max(0, forecast_val)))
         else:
-            # Fallback if < 12 months history: repeat last known month
-            last_val = int(round(float(monthly_ts.iloc[-1]))) if not monthly_ts.empty else 0
-            last_hist_period = max_period
+            vals = monthly_ts.values.astype(float)
+            last_val = float(vals[-1]) if len(vals) else 0.0
+            delta = float(vals[-1] - vals[-2]) if len(vals) >= 2 else 0.0
+
+            last_hist_period = monthly_ts.index.max().to_period("M")
             future_periods = pd.period_range(last_hist_period + 1, periods=6, freq="M")
 
-            for p in future_periods:
+            for i, p in enumerate(future_periods, start=1):
+                pred = last_val + delta * i
                 fc_week_labels.append(p.strftime("%Y-%m"))
-                fc_week_values.append(int(max(0, last_val)))
+                fc_week_values.append(int(max(0, round(pred))))
 
-    # -------------------------------------------------------------------------
-    # LONG-WINDOW SEASONALITY (Jan–Dec, multi-year)
-    # NOTE: keep this window reasonable for performance (2 years is plenty)
-    # -------------------------------------------------------------------------
-    try:
-        df_long = load_sla_data(days=730)  # ~2 years
-    except Exception as e:
-        print(f"[WARN] Failed to load long-window SLA data for seasonality: {e}")
-        df_long = pd.DataFrame()
-
+    # 4) Seasonality (Jan–Dec totals) + seasonal topic lines + top topics bar
     month_labels = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
                     "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
     month_totals = [0] * 12
@@ -1009,73 +1038,59 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     topic_labels: list[str] = []
     topic_totals: list[int] = []
 
-    if (
-        df_long is not None
-        and not df_long.empty
-        and "date" in df_long.columns
-        and "total_cases" in df_long.columns
-    ):
-        df_long = df_long.dropna(subset=["date"]).copy()
-        df_long["date"] = pd.to_datetime(df_long["date"], errors="coerce")
-        df_long = df_long.dropna(subset=["date"])
-        df_long["total_cases"] = pd.to_numeric(df_long["total_cases"], errors="coerce").fillna(0).astype(int)
-
-        # 3a) Seasonality – total volume by month (all topics)
-        daily_long = (
-            df_long.groupby("date", as_index=False)["total_cases"]
-            .sum()
-            .rename(columns={"total_cases": "daily_volume"})
-        )
-        daily_long["month_num"] = daily_long["date"].dt.month
+    if daily_long is not None and not daily_long.empty:
+        # 4a) total volume by month-of-year (all topics)
+        tmp = daily_long.reset_index().rename(columns={"index": "date"})
+        tmp["month_num"] = tmp["date"].dt.month
 
         month_counts = (
-            daily_long.groupby("month_num")["daily_volume"]
+            tmp.groupby("month_num")["daily_volume"]
             .sum()
             .to_dict()
         )
 
-        month_totals = [int(month_counts.get(m, 0)) for m in range(1, 13)]
+        month_totals = [int(round(float(month_counts.get(m, 0)))) for m in range(1, 13)]
         month_has_data = [month_counts.get(m, 0) > 0 for m in range(1, 13)]
 
-        # 3b) Seasonal peaks by topic (month-of-year, top 5 reasons)
-        if "reason" in df_long.columns:
-            df_reason = df_long.copy()
-            df_reason["reason"] = (
-                df_reason["reason"].fillna("Unknown").astype(str).str.strip()
-            )
+    # Topic-based seasonality and top topics need "reason" in df_long
+    if df_long is not None and not df_long.empty and "reason" in df_long.columns and "date" in df_long.columns and "total_cases" in df_long.columns:
+        df_reason = df_long.dropna(subset=["date"]).copy()
+        df_reason["date"] = pd.to_datetime(df_reason["date"], errors="coerce")
+        df_reason = df_reason.dropna(subset=["date"])
+        df_reason["total_cases"] = pd.to_numeric(df_reason["total_cases"], errors="coerce").fillna(0).astype(int)
+        df_reason["reason"] = df_reason["reason"].fillna("Unknown").astype(str).str.strip()
+        df_reason["month_num"] = df_reason["date"].dt.month
 
-            top_topics = (
-                df_reason.groupby("reason")["total_cases"]
+        top_topics = (
+            df_reason.groupby("reason")["total_cases"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(5)
+            .index
+            .tolist()
+        )
+
+        # 4b) seasonal lines (month-of-year) for top 5 reasons
+        seasonal_datasets = []
+        for topic in top_topics:
+            topic_df = df_reason[df_reason["reason"] == topic]
+            topic_month_counts = (
+                topic_df.groupby("month_num")["total_cases"]
                 .sum()
-                .sort_values(ascending=False)
-                .head(5)
-                .index
-                .tolist()
+                .to_dict()
             )
+            counts_for_topic = [int(topic_month_counts.get(m, 0)) for m in range(1, 13)]
+            seasonal_datasets.append({"label": topic, "data": counts_for_topic})
 
-            df_reason = df_reason[df_reason["reason"].isin(top_topics)]
-            df_reason["month_num"] = df_reason["date"].dt.month
-
-            seasonal_datasets = []
-            for topic in top_topics:
-                topic_df = df_reason[df_reason["reason"] == topic]
-                topic_month_counts = (
-                    topic_df.groupby("month_num")["total_cases"]
-                    .sum()
-                    .to_dict()
-                )
-                counts_for_topic = [int(topic_month_counts.get(m, 0)) for m in range(1, 13)]
-                seasonal_datasets.append({"label": topic, "data": counts_for_topic})
-
-            # 3c) Top request topics by volume (bar chart)
-            topic_counts = (
-                df_reason.groupby("reason")["total_cases"]
-                .sum()
-                .sort_values(ascending=False)
-                .head(5)
-            )
-            topic_labels = topic_counts.index.tolist()
-            topic_totals = [int(v) for v in topic_counts.values]
+        # 4c) top topics bar (volume)
+        topic_counts = (
+            df_reason.groupby("reason")["total_cases"]
+            .sum()
+            .sort_values(ascending=False)
+            .head(5)
+        )
+        topic_labels = topic_counts.index.tolist()
+        topic_totals = [int(v) for v in topic_counts.values]
 
     return {
         "hist_week_labels": hist_week_labels,
@@ -1088,8 +1103,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         "seasonal_datasets": seasonal_datasets,
         "topic_labels": topic_labels,
         "topic_totals": topic_totals,
-    }
-    
+    }    
 
 def get_demand_metrics() -> dict:
     global DEMAND_CACHE, DEMAND_CACHE_TS
