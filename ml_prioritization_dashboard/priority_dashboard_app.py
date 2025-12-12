@@ -47,6 +47,10 @@ DEMAND_CACHE: dict | None = None
 DEMAND_CACHE_TS: dt.datetime | None = None
 DEMAND_TTL_MIN = 30  # minutes
 
+FULL_DF: pd.DataFrame | None = None
+FULL_DF_TS: dt.datetime | None = None
+FULL_DF_TTL_MIN = 10   # pick 5–15 mins for demo
+
 # Local model loading (Cloud Run–only inference)
 
 MODEL_PATH = APP_DIR / "models" / "priority_model.pkl"
@@ -77,13 +81,14 @@ PROJECT = os.getenv("B311_PROJECT_ID", "boston311-mlops")
 DATASET = os.getenv("B311_DATASET", "boston311_service")
 TABLE = os.getenv("B311_TABLE", "cases_ranking_ml")
 
-# Daily metrics table (used for SLA, Demand, Analytics)
 SLA_PROJECT = os.getenv("B311_SLA_PROJECT", PROJECT)
+
 SLA_DATASET = os.getenv("B311_SLA_DATASET", DATASET)
 SLA_TABLE = os.getenv("B311_SLA_TABLE", "dashboard_daily_metrics")
 
-# Raw service requests table (used only for overdue open cases)
+SLA_RAW_DATASET = os.getenv("B311_SLA_RAW_DATASET", SLA_DATASET)
 SLA_RAW_TABLE = os.getenv("B311_SLA_RAW_TABLE", "service_requests_2025")
+
 
 BQ_LOCATION = os.getenv("BQ_LOCATION", "US")
 
@@ -161,16 +166,23 @@ def load_data() -> pd.DataFrame:
 
 
 def get_full_df() -> pd.DataFrame:
-    """
-    Lazy-load FULL_DF the first time it's needed, instead of at import/boot time.
-    This avoids slow cold-starts and repeated reloads on Cloud Run.
-    """
-    global FULL_DF
-    if FULL_DF is None:
-        print("[INFO] Loading cases_ranking_ml into memory...")
+    global FULL_DF, FULL_DF_TS
+
+    now_utc = dt.datetime.utcnow()
+    should_refresh = (
+        FULL_DF is None
+        or FULL_DF_TS is None
+        or (now_utc - FULL_DF_TS).total_seconds() > FULL_DF_TTL_MIN * 60
+    )
+
+    if should_refresh:
+        print("[INFO] Refreshing cases_ranking_ml cache from BigQuery...")
         FULL_DF = load_data()
+        FULL_DF_TS = now_utc
         print(f"[INFO] Loaded {len(FULL_DF)} rows into memory.")
+
     return FULL_DF
+
 
 # Daily SLA / analytics table loading (dashboard_daily_metrics)
 
@@ -618,7 +630,7 @@ def load_overdue_open_cases(days: int = 365) -> pd.DataFrame:
       sla_target_dt,
       closed_dt,
       case_status
-    FROM `{SLA_PROJECT}.{SLA_DATASET}.{SLA_RAW_TABLE}`
+    FROM `{SLA_PROJECT}.{SLA_RAW_DATASET}.{SLA_RAW_TABLE}`
     WHERE DATE(open_dt) >= DATE_SUB(CURRENT_DATE(), INTERVAL {days} DAY)
       AND case_status = 'Open'
       AND sla_target_dt IS NOT NULL
@@ -889,14 +901,17 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     }
 
     # Guard for recent data (for weekly history + forecast)
-    if df_recent.empty or "date" not in df_recent.columns:
-        # We still try to build seasonality from the long window below.
+    if df_recent is None or df_recent.empty or "date" not in df_recent.columns:
         recent_daily = None
     else:
         df_r = df_recent.dropna(subset=["date"]).copy()
         if "total_cases" not in df_r.columns:
             recent_daily = None
         else:
+            # Ensure datetime index for resample
+            df_r["date"] = pd.to_datetime(df_r["date"], errors="coerce")
+            df_r = df_r.dropna(subset=["date"])
+
             recent_daily = (
                 df_r.groupby("date", as_index=False)["total_cases"]
                 .sum()
@@ -909,7 +924,9 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     fc_week_labels: list[str] = []
     fc_week_values: list[int] = []
 
-    # 1) Weekly historical volume (last 12 months, no forecast)
+    # -------------------------------------------------------------------------
+    # 1) Weekly historical volume (last 12 months)
+    # -------------------------------------------------------------------------
     if recent_daily is not None and not recent_daily.empty:
         max_date = recent_daily.index.max()
 
@@ -933,7 +950,10 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         hist_week_labels = [ts.strftime("%Y-%m-%d") for ts in weekly_counts.index]
         hist_week_values = [int(v) for v in weekly_counts.values]
 
-        # 2) Monthly trend forecast (next 6 months)
+        # ---------------------------------------------------------------------
+        # 2) Monthly seasonal-naive forecast (next 6 months)
+        #    Forecast each future month as "same month last year"
+        # ---------------------------------------------------------------------
         monthly_ts = (
             recent_daily["daily_volume"]
             .resample("MS")
@@ -945,36 +965,38 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         max_period = max_date.to_period("M")
         monthly_ts = monthly_ts[monthly_ts.index.to_period("M") <= max_period]
 
-        if not monthly_ts.empty:
-            history = monthly_ts.tail(12)  # up to last 12 months
-            hist_values = history.values.astype(float)
+        if len(monthly_ts) >= 12:
+            # Lookup: Period(YYYY-MM) -> volume
+            month_lookup = {
+                ts.to_period("M"): int(round(float(val)))
+                for ts, val in monthly_ts.items()
+            }
 
-            base_level = float(hist_values.mean()) if len(hist_values) > 0 else 0.0
-
-            # Simple linear trend (first -> last)
-            if len(hist_values) >= 2:
-                slope = (hist_values[-1] - hist_values[0]) / max(len(hist_values) - 1, 1)
-            else:
-                slope = 0.0
-
-            last_hist_period = history.index[-1].to_period("M")
+            last_hist_period = monthly_ts.index.max().to_period("M")
             future_periods = pd.period_range(last_hist_period + 1, periods=6, freq="M")
-            future_index = future_periods.to_timestamp()
 
-            for i, ts in enumerate(future_index):
-                t = len(hist_values) + i
-                trend_val = base_level + slope * t
+            for p in future_periods:
+                prior_year = p - 12
+                forecast_val = month_lookup.get(prior_year, 0)
 
-                # +/- 15% seasonal wiggle over a 6-month cycle
-                seasonal_factor = 1.0 + 0.15 * np.sin(2.0 * np.pi * i / 6.0)
-                forecast_val = max(0.0, trend_val * seasonal_factor)
+                fc_week_labels.append(p.strftime("%Y-%m"))
+                fc_week_values.append(int(max(0, forecast_val)))
+        else:
+            # Fallback if < 12 months history: repeat last known month
+            last_val = int(round(float(monthly_ts.iloc[-1]))) if not monthly_ts.empty else 0
+            last_hist_period = max_period
+            future_periods = pd.period_range(last_hist_period + 1, periods=6, freq="M")
 
-                fc_week_labels.append(ts.strftime("%Y-%m"))
-                fc_week_values.append(int(round(forecast_val)))
+            for p in future_periods:
+                fc_week_labels.append(p.strftime("%Y-%m"))
+                fc_week_values.append(int(max(0, last_val)))
 
-    # LONG-WINDOW SEASONALITY (Jan–Dec, multi-year) 
+    # -------------------------------------------------------------------------
+    # LONG-WINDOW SEASONALITY (Jan–Dec, multi-year)
+    # NOTE: keep this window reasonable for performance (2 years is plenty)
+    # -------------------------------------------------------------------------
     try:
-        df_long = load_sla_data(days=3650)  # ~10 years; adjust if you want
+        df_long = load_sla_data(days=730)  # ~2 years
     except Exception as e:
         print(f"[WARN] Failed to load long-window SLA data for seasonality: {e}")
         df_long = pd.DataFrame()
@@ -987,18 +1009,25 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
     topic_labels: list[str] = []
     topic_totals: list[int] = []
 
-    if not df_long.empty and "date" in df_long.columns and "total_cases" in df_long.columns:
+    if (
+        df_long is not None
+        and not df_long.empty
+        and "date" in df_long.columns
+        and "total_cases" in df_long.columns
+    ):
         df_long = df_long.dropna(subset=["date"]).copy()
-        df_long["date"] = pd.to_datetime(df_long["date"])
-        df_long["total_cases"] = df_long["total_cases"].astype(int)
+        df_long["date"] = pd.to_datetime(df_long["date"], errors="coerce")
+        df_long = df_long.dropna(subset=["date"])
+        df_long["total_cases"] = pd.to_numeric(df_long["total_cases"], errors="coerce").fillna(0).astype(int)
 
-        #  3a) Seasonality – total volume by month (all topics)
+        # 3a) Seasonality – total volume by month (all topics)
         daily_long = (
             df_long.groupby("date", as_index=False)["total_cases"]
             .sum()
             .rename(columns={"total_cases": "daily_volume"})
         )
         daily_long["month_num"] = daily_long["date"].dt.month
+
         month_counts = (
             daily_long.groupby("month_num")["daily_volume"]
             .sum()
@@ -1008,7 +1037,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         month_totals = [int(month_counts.get(m, 0)) for m in range(1, 13)]
         month_has_data = [month_counts.get(m, 0) > 0 for m in range(1, 13)]
 
-        # 3b) Seasonal peaks by topic (month-of-year, top 5 reasons) 
+        # 3b) Seasonal peaks by topic (month-of-year, top 5 reasons)
         if "reason" in df_long.columns:
             df_reason = df_long.copy()
             df_reason["reason"] = (
@@ -1035,12 +1064,8 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
                     .sum()
                     .to_dict()
                 )
-                counts_for_topic = [
-                    int(topic_month_counts.get(m, 0)) for m in range(1, 13)
-                ]
-                seasonal_datasets.append(
-                    {"label": topic, "data": counts_for_topic}
-                )
+                counts_for_topic = [int(topic_month_counts.get(m, 0)) for m in range(1, 13)]
+                seasonal_datasets.append({"label": topic, "data": counts_for_topic})
 
             # 3c) Top request topics by volume (bar chart)
             topic_counts = (
@@ -1064,7 +1089,7 @@ def build_demand_cache(df_recent: pd.DataFrame) -> dict:
         "topic_labels": topic_labels,
         "topic_totals": topic_totals,
     }
-
+    
 
 def get_demand_metrics() -> dict:
     global DEMAND_CACHE, DEMAND_CACHE_TS
@@ -1296,7 +1321,29 @@ def api_ping():
         "service": "b311-priority-dashboard",
         "timestamp": dt.datetime.utcnow().isoformat() + "Z",
     }
-    
+
+@app.route("/api/debug", methods=["GET"])
+def api_debug():
+    df_cases = get_full_df()
+    df_sla = get_sla_cached_df(days=365)
+
+    out = {
+        "cases_table": f"{PROJECT}.{DATASET}.{TABLE}",
+        "sla_table": f"{SLA_PROJECT}.{SLA_DATASET}.{SLA_TABLE}",
+        "raw_table": f"{SLA_PROJECT}.{SLA_RAW_DATASET}.{SLA_RAW_TABLE}",
+        "full_df_rows": int(len(df_cases)) if df_cases is not None else None,
+        "sla_df_rows": int(len(df_sla)) if df_sla is not None else None,
+        "sla_max_date": (
+            df_sla["date"].max().strftime("%Y-%m-%d")
+            if (df_sla is not None and not df_sla.empty and "date" in df_sla.columns and pd.notna(df_sla["date"].max()))
+            else None
+        ),
+        "now_utc": dt.datetime.utcnow().isoformat() + "Z",
+        "sla_cache_ts_utc": SLA_CACHE_TS.isoformat() + "Z" if SLA_CACHE_TS else None,
+    }
+    return jsonify(out)
+
+
 # Cloud Run–friendly entrypoint
 
 if __name__ == "__main__":

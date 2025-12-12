@@ -1,6 +1,6 @@
 [
   {
-    "run_timestamp": "20251206T010328Z",
+    "run_timestamp": "20251212T001410Z",
     "name": "hgb_baseline",
     "algo": "hist_gradient_boosting",
     "params": {
@@ -26,7 +26,7 @@
       "verbose": 0,
       "warm_start": false
     },
-    "val_roc_auc": 0.8557132040688679,
+    "val_roc_auc": 0.855713204068868,
     "val_pr_auc": 0.9807567903988966,
     "val_precision_at_5pct": 1.0,
     "val_accuracy": 0.9012218156061859,
@@ -35,7 +35,7 @@
     "val_f1": 0.9471857100026825
   },
   {
-    "run_timestamp": "20251206T010330Z",
+    "run_timestamp": "20251212T001412Z",
     "name": "hgb_regularized",
     "algo": "hist_gradient_boosting",
     "params": {
@@ -61,7 +61,7 @@
       "verbose": 0,
       "warm_start": false
     },
-    "val_roc_auc": 0.8524590452464302,
+    "val_roc_auc": 0.8524590452464303,
     "val_pr_auc": 0.9802254065826135,
     "val_precision_at_5pct": 1.0,
     "val_accuracy": 0.9006315665210719,
